@@ -1,0 +1,109 @@
+{
+  "name": "custtr-ai",
+  "displayName": "CUSTTR AI",
+  "description": "CoursDev team Claude Code skills extension",
+  "version": "1.0.0",
+  "publisher": "custtr",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "custtr-ai",
+          "title": "CUSTTR AI",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "custtr-ai": [
+        {
+          "type": "webview",
+          "id": "custtrAiSidebar",
+          "name": ""
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "custtr-ai.refreshSkills",
+        "title": "Refresh Skills",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "custtr-ai.openSkill",
+        "title": "Open Skill"
+      },
+      {
+        "command": "custtr-ai.contributeSkill",
+        "title": "Contribute Skill via PR",
+        "icon": "$(git-pull-request)"
+      },
+      {
+        "command": "custtr-ai.checkForUpdates",
+        "title": "Check for Extension Updates"
+      },
+      {
+        "command": "custtr-ai.setGitHubToken",
+        "title": "CUSTTR AI: Set GitHub Token"
+      },
+      {
+        "command": "custtr-ai.openReadme",
+        "title": "CUSTTR AI: Open README"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "custtr-ai.refreshSkills",
+          "when": "view == custtrAiSidebar",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CoursDev AI",
+      "properties": {
+        "custtr-ai.repoUrl": {
+          "type": "string",
+          "default": "https://gitenterprise.xilinx.com/lbindhu/custtr_ai",
+          "description": "GitHub Enterprise URL for the CourseDev AI repository"
+        },
+        "custtr-ai.releasesUrl": {
+          "type": "string",
+          "default": "https://gitenterprise.xilinx.com/lbindhu/custtr_ai/raw/main/releases/latest.json",
+          "description": "URL of the releases/latest.json file for update checks"
+        },
+        "custtr-ai.checkUpdatesOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically check for extension updates on startup"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.0",
+    "@types/vscode": "^1.93.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {}
+}
