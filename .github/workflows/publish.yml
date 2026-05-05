@@ -1,0 +1,67 @@
+name: Publish Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: extension
+        run: npm install
+
+      - name: Compile TypeScript
+        working-directory: extension
+        run: npm run compile
+
+      - name: Package VSIX
+        working-directory: extension
+        run: npx @vscode/vsce package --no-dependencies
+
+      - name: Get version from tag
+        id: ver
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "v${{ steps.ver.outputs.VERSION }}" \
+            "extension/custtr-ai-${{ steps.ver.outputs.VERSION }}.vsix" \
+            --title "v${{ steps.ver.outputs.VERSION }}" \
+            --notes "Release v${{ steps.ver.outputs.VERSION }}"
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Update releases/latest.json
+        run: |
+          VERSION=${{ steps.ver.outputs.VERSION }}
+          REPO="${{ github.server_url }}/${{ github.repository }}"
+          DOWNLOAD="${REPO}/releases/download/v${VERSION}/custtr-ai-${VERSION}.vsix"
+          printf '{"version":"%s","downloadUrl":"%s","releaseNotes":"Release v%s"}\n' \
+            "$VERSION" "$DOWNLOAD" "$VERSION" > releases/latest.json
+
+      - name: Commit latest.json to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add releases/latest.json
+          git commit -m "chore: update latest.json to v${{ steps.ver.outputs.VERSION }} [skip ci]"
+          git push origin HEAD:main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
