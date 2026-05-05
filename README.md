@@ -11,7 +11,7 @@ A VS Code extension that brings the CoursDev team's Claude Code skills directly 
 
 ## Installing the Extension
 
-1. Go to the [Releases](../../releases) page of this repository
+1. Go to the [Releases](https://github.com/lbindhu/custtr_ai/releases) page of this repository
 2. Download the latest `.vsix` file
 3. Open VS Code and press `Ctrl+Shift+P`
 4. Type `Extensions: Install from VSIX` and select it

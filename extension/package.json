@@ -4,6 +4,10 @@
   "description": "CoursDev team Claude Code skills extension",
   "version": "1.0.0",
   "publisher": "custtr",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lbindhu/custtr_ai.git"
+  },
   "engines": {
     "vscode": "^1.93.0"
   },
