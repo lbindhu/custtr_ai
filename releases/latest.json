@@ -1,5 +1,1 @@
-{
-  "version": "1.0.0",
-  "downloadUrl": "https://gitenterprise.xilinx.com/lbindhu/custtr_ai/releases/download/v1.0.0/custtr-ai-1.0.0.vsix",
-  "releaseNotes": "Initial release of CUSSTR AI extension with PR contribution flow."
-}
+{"version":"1.0.0","downloadUrl":"https://github.com/lbindhu/custtr_ai/releases/download/v1.0.0/custtr-ai-1.0.0.vsix","releaseNotes":"Release v1.0.0"}
