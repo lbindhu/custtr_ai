@@ -34,6 +34,11 @@ jobs:
       - name: Copy README into extension folder
         run: cp README.md extension/README.md
 
+      - name: Bundle releases/latest.json inside extension
+        run: |
+          mkdir -p extension/releases
+          cp releases/latest.json extension/releases/latest.json
+
       - name: Package VSIX
         working-directory: extension
         run: npx @vscode/vsce package --no-dependencies
