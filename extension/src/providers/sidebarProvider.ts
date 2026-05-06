@@ -48,10 +48,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(msg => {
       switch (msg.command) {
         case 'openReadme':
-          vscode.commands.executeCommand(
-            'workbench.extensions.action.showExtensionsWithIds',
-            ['custtr.custtr-ai']
-          );
+          vscode.env.openExternal(vscode.Uri.parse('vscode:extension/custtr.custtr-ai'));
           break;
         case 'openSkill':
           vscode.workspace.openTextDocument(msg.path).then(doc =>
@@ -77,7 +74,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private async _fetchLatest(): Promise<void> {
-    const localPath = path.join(this.context.extensionPath, '..', 'releases', 'latest.json');
+    const localPath = path.join(this.context.extensionPath, 'releases', 'latest.json');
     if (fs.existsSync(localPath)) {
       try {
         const data = JSON.parse(fs.readFileSync(localPath, 'utf8'));
@@ -259,7 +256,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <a class="readme-link" href="#" onclick="send('openReadme');return false;">#README</a>
     <div class="versions">
       <span>Installed: <strong>v${cur}</strong></span>
-      <span>Latest:&nbsp;&nbsp;&nbsp; <strong>${checking ? lat : 'v' + lat}</strong>${badge}</span>
+      <span>Latest:&nbsp;&nbsp;&nbsp; <strong>${checking || ['unavailable', 'not configured'].includes(lat) ? lat : 'v' + lat}</strong>${badge}</span>
     </div>
   </div>
 

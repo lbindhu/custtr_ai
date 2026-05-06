@@ -84,7 +84,7 @@
         },
         "custtr-ai.releasesUrl": {
           "type": "string",
-          "default": "https://gitenterprise.xilinx.com/lbindhu/custtr_ai/raw/main/releases/latest.json",
+          "default": "https://raw.githubusercontent.com/lbindhu/custtr_ai/main/releases/latest.json",
           "description": "URL of the releases/latest.json file for update checks"
         },
         "custtr-ai.checkUpdatesOnStartup": {
