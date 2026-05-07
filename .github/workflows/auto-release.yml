@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  bump-and-tag:
+  bump-and-publish:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,6 +26,10 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies
+        working-directory: extension
+        run: npm install
+
       - name: Bump patch version
         id: bump
         working-directory: extension
@@ -36,6 +40,17 @@ jobs:
           echo "OLD=$OLD" >> $GITHUB_OUTPUT
           echo "NEW=$NEW" >> $GITHUB_OUTPUT
 
+      - name: Compile TypeScript
+        working-directory: extension
+        run: npm run compile
+
+      - name: Copy README into extension folder
+        run: cp README.md extension/README.md
+
+      - name: Package VSIX
+        working-directory: extension
+        run: npx @vscode/vsce package --no-dependencies
+
       - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
@@ -44,7 +59,27 @@ jobs:
           git commit -m "chore: bump version to v${{ steps.bump.outputs.NEW }} [skip ci]"
           git push origin main
 
-      - name: Push version tag
+      - name: Create GitHub Release
         run: |
-          git tag "v${{ steps.bump.outputs.NEW }}"
-          git push origin "v${{ steps.bump.outputs.NEW }}"
+          gh release create "v${{ steps.bump.outputs.NEW }}" \
+            "extension/custtr-ai-${{ steps.bump.outputs.NEW }}.vsix" \
+            --title "v${{ steps.bump.outputs.NEW }}" \
+            --notes "Release v${{ steps.bump.outputs.NEW }}"
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Update releases/latest.json
+        run: |
+          VERSION=${{ steps.bump.outputs.NEW }}
+          REPO="${{ github.server_url }}/${{ github.repository }}"
+          DOWNLOAD="${REPO}/releases/download/v${VERSION}/custtr-ai-${VERSION}.vsix"
+          printf '{"version":"%s","downloadUrl":"%s","releaseNotes":"Release v%s"}\n' \
+            "$VERSION" "$DOWNLOAD" "$VERSION" > releases/latest.json
+
+      - name: Commit latest.json
+        run: |
+          git add releases/latest.json
+          git diff --staged --quiet || git commit -m "chore: update latest.json to v${{ steps.bump.outputs.NEW }} [skip ci]"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
