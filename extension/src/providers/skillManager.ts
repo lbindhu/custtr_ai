@@ -64,9 +64,7 @@ export class SkillManager {
       const displayName = entry.name
         .replace(/^custtr-/, '')
         .replace(/^psas-/, '')
-        .replace(/^m365-/, 'M365 ')
-        .replace(/-/g, ' ')
-        .replace(/\b\w/g, c => c.toUpperCase());
+        .replace(/^m365-/, 'M365 ');
 
       skills.push({
         name: entry.name,
