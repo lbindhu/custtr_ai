@@ -215,7 +215,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     flex-shrink: 0;
     color: var(--vscode-descriptionForeground);
   }
-  .skill-name { flex: 1; font-size: 12px; }
+  .skill-name { flex: 1; font-size: 12px; text-transform: none; }
   .skill-ver  { font-size: 10px; color: var(--vscode-descriptionForeground); }
 
   .pr-btn {
@@ -244,8 +244,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   <div class="header">
     <a class="readme-link" href="#" onclick="send('openReadme');return false;">#README</a>
     <div class="versions">
-      <span>Installed: <strong>v${cur}</strong></span>
-      <span>Latest:&nbsp;&nbsp;&nbsp; <strong>${checking || ['unavailable', 'not configured'].includes(lat) ? lat : 'v' + lat}</strong>${badge}</span>
+      <span>Installed: <strong>v${cur}</strong>${badge}</span>
+      <span>Latest:&nbsp;&nbsp;&nbsp; <strong>${checking || ['unavailable', 'not configured'].includes(lat) ? lat : 'v' + lat}</strong></span>
     </div>
   </div>
 
