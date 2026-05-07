@@ -6,7 +6,7 @@ import { UpdateManager } from './providers/updateManager';
 import { StatusBarManager } from './providers/statusBarManager';
 import { SidebarProvider } from './providers/sidebarProvider';
 
-export async function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext) {
   const credentialManager = new CredentialManager(context);
   const skillManager = new SkillManager(context);
   const pullRequestManager = new PullRequestManager();
@@ -55,7 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const config = vscode.workspace.getConfiguration('custtr-ai');
   if (config.get<boolean>('checkUpdatesOnStartup', true)) {
-    await updateManager.checkForUpdates(false);
+    updateManager.checkForUpdates(false);
   }
 }
 
