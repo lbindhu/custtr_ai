@@ -105,8 +105,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private _skillRow(s: Skill, showContribute: boolean): string {
-    const pathJson = JSON.stringify(s.mdPath);
-    const nameJson = JSON.stringify(s.name);
+    const pathJson = esc(JSON.stringify(s.mdPath));
+    const nameJson = esc(JSON.stringify(s.name));
     return `
       <div class="skill-row" onclick="send('openSkill',{path:${pathJson}})">
         <svg class="skill-icon" viewBox="0 0 16 16" fill="currentColor">

@@ -9,7 +9,7 @@ import { SidebarProvider } from './providers/sidebarProvider';
 export async function activate(context: vscode.ExtensionContext) {
   const credentialManager = new CredentialManager(context);
   const skillManager = new SkillManager(context);
-  const pullRequestManager = new PullRequestManager(credentialManager);
+  const pullRequestManager = new PullRequestManager();
   const updateManager = new UpdateManager(context);
   const statusBarManager = new StatusBarManager(context);
   const sidebarProvider = new SidebarProvider(context, skillManager);

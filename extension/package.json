@@ -79,7 +79,7 @@
       "properties": {
         "custtr-ai.repoUrl": {
           "type": "string",
-          "default": "https://gitenterprise.xilinx.com/lbindhu/custtr_ai",
+          "default": "https://github.com/lbindhu/custtr_ai",
           "description": "GitHub Enterprise URL for the CourseDev AI repository"
         },
         "custtr-ai.releasesUrl": {
