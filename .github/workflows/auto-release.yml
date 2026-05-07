@@ -1,0 +1,50 @@
+name: Auto Release on Merge
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'extension/skills/**'
+
+permissions:
+  contents: write
+
+jobs:
+  bump-and-tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bump patch version
+        id: bump
+        working-directory: extension
+        run: |
+          OLD=$(node -p "require('./package.json').version")
+          npm version patch --no-git-tag-version
+          NEW=$(node -p "require('./package.json').version")
+          echo "OLD=$OLD" >> $GITHUB_OUTPUT
+          echo "NEW=$NEW" >> $GITHUB_OUTPUT
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add extension/package.json
+          git commit -m "chore: bump version to v${{ steps.bump.outputs.NEW }} [skip ci]"
+          git push origin main
+
+      - name: Push version tag
+        run: |
+          git tag "v${{ steps.bump.outputs.NEW }}"
+          git push origin "v${{ steps.bump.outputs.NEW }}"
