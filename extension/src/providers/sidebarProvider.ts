@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import * as https from 'https';
 import * as http from 'http';
-import * as fs from 'fs';
-import * as path from 'path';
 import { SkillManager, Skill } from './skillManager';
 
 function fetchVersion(url: string): Promise<string> {
@@ -74,15 +72,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private async _fetchLatest(): Promise<void> {
-    const localPath = path.join(this.context.extensionPath, 'releases', 'latest.json');
-    if (fs.existsSync(localPath)) {
-      try {
-        const data = JSON.parse(fs.readFileSync(localPath, 'utf8'));
-        this._latestVersion = data.version ?? 'unknown';
-        this._redraw();
-        return;
-      } catch (_e) { /* fall through to network */ }
-    }
     const config = vscode.workspace.getConfiguration('custtr-ai');
     const url = config.get<string>('releasesUrl', '');
     if (!url) {
