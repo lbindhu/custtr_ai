@@ -53,28 +53,8 @@ export class SkillManager {
       const src = path.join(bundledDir, entry.name);
       const dest = path.join(this.userSkillsPath, entry.name);
 
-      const srcVersion = this._readVersion(src);
-      const destVersion = this._readVersion(dest);
-
-      if (!fs.existsSync(dest) || this._isNewer(srcVersion, destVersion)) {
-        this._copyDir(src, dest);
-      }
+      this._copyDir(src, dest);
     }
-  }
-
-  private _readVersion(skillPath: string): string {
-    const vp = path.join(skillPath, 'version.txt');
-    return fs.existsSync(vp) ? fs.readFileSync(vp, 'utf8').trim() : '0';
-  }
-
-  private _isNewer(a: string, b: string): boolean {
-    const parse = (v: string) => v.split('.').map(Number);
-    const av = parse(a), bv = parse(b);
-    for (let i = 0; i < Math.max(av.length, bv.length); i++) {
-      if ((av[i] ?? 0) > (bv[i] ?? 0)) { return true; }
-      if ((av[i] ?? 0) < (bv[i] ?? 0)) { return false; }
-    }
-    return false;
   }
 
   private _copyDir(src: string, dest: string): void {
