@@ -39,11 +39,6 @@
     },
     "commands": [
       {
-        "command": "custtr-ai.refreshSkills",
-        "title": "Refresh Skills",
-        "icon": "$(refresh)"
-      },
-      {
         "command": "custtr-ai.openSkill",
         "title": "Open Skill"
       },
@@ -65,15 +60,7 @@
         "title": "CUSTTR AI: Open README"
       }
     ],
-    "menus": {
-      "view/title": [
-        {
-          "command": "custtr-ai.refreshSkills",
-          "when": "view == custtrAiSidebar",
-          "group": "navigation"
-        }
-      ]
-    },
+    "menus": {},
     "configuration": {
       "title": "CoursDev AI",
       "properties": {
