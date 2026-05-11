@@ -102,7 +102,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           <path d="M2 4h12v1H2V4zm0 3h12v1H2V7zm0 3h8v1H2v-1z"/>
         </svg>
         <span class="skill-name">${esc(s.displayName)}</span>
-        <span class="skill-ver">v${esc(s.version)}</span>
+        ${s.version ? `<span class="skill-ver">v${esc(s.version)}</span>` : ''}
         ${showContribute
           ? `<button class="pr-btn" title="Contribute via PR"
                onclick="event.stopPropagation();send('contributeSkill',{skillName:${nameJson}})">⎇</button>`

@@ -104,7 +104,7 @@ export class SkillManager {
 
       const version = fs.existsSync(versionPath)
         ? fs.readFileSync(versionPath, 'utf8').trim()
-        : '1.0';
+        : '';
 
       skills.push({
         name: entry.name,
