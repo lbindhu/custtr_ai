@@ -52,6 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   skillManager.syncBundledSkills();
+  context.subscriptions.push(skillManager.watchBundledSkills(() => sidebarProvider.refresh()));
   statusBarManager.show();
 
   const config = vscode.workspace.getConfiguration('custtr-ai');
