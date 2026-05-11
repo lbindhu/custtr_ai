@@ -33,7 +33,58 @@ export class SkillManager {
     if (!fs.existsSync(this.userSkillsPath)) {
       return [];
     }
-    return this.loadSkillsFromDir(this.userSkillsPath, 'user');
+    const bundledNames = new Set(this.getCUSTTRSkills().map(s => s.name));
+    return this.loadSkillsFromDir(this.userSkillsPath, 'user')
+      .filter(s => !bundledNames.has(s.name));
+  }
+
+  syncBundledSkills(): void {
+    const bundledDir = path.join(this.extensionPath, 'skills');
+    if (!fs.existsSync(bundledDir)) { return; }
+
+    if (!fs.existsSync(this.userSkillsPath)) {
+      fs.mkdirSync(this.userSkillsPath, { recursive: true });
+    }
+
+    const entries = fs.readdirSync(bundledDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !entry.name.startsWith('custtr-')) { continue; }
+
+      const src = path.join(bundledDir, entry.name);
+      const dest = path.join(this.userSkillsPath, entry.name);
+
+      const srcVersion = this._readVersion(src);
+      const destVersion = this._readVersion(dest);
+
+      if (!fs.existsSync(dest) || this._isNewer(srcVersion, destVersion)) {
+        this._copyDir(src, dest);
+      }
+    }
+  }
+
+  private _readVersion(skillPath: string): string {
+    const vp = path.join(skillPath, 'version.txt');
+    return fs.existsSync(vp) ? fs.readFileSync(vp, 'utf8').trim() : '0';
+  }
+
+  private _isNewer(a: string, b: string): boolean {
+    const parse = (v: string) => v.split('.').map(Number);
+    const av = parse(a), bv = parse(b);
+    for (let i = 0; i < Math.max(av.length, bv.length); i++) {
+      if ((av[i] ?? 0) > (bv[i] ?? 0)) { return true; }
+      if ((av[i] ?? 0) < (bv[i] ?? 0)) { return false; }
+    }
+    return false;
+  }
+
+  private _copyDir(src: string, dest: string): void {
+    if (!fs.existsSync(dest)) { fs.mkdirSync(dest, { recursive: true }); }
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const s = path.join(src, entry.name);
+      const d = path.join(dest, entry.name);
+      if (entry.isDirectory()) { this._copyDir(s, d); }
+      else { fs.copyFileSync(s, d); }
+    }
   }
 
   private loadSkillsFromDir(dir: string, type: 'custtr' | 'user'): Skill[] {

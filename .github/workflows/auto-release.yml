@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'extension/skills/**'
+      - 'extension/src/**'
 
 permissions:
   contents: write
