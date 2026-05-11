@@ -51,6 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  skillManager.syncBundledSkills();
   statusBarManager.show();
 
   const config = vscode.workspace.getConfiguration('custtr-ai');
