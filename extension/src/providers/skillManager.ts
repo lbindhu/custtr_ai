@@ -52,9 +52,23 @@ export class SkillManager {
 
       const src = path.join(bundledDir, entry.name);
       const dest = path.join(this.userSkillsPath, entry.name);
-
       this._copyDir(src, dest);
     }
+  }
+
+  watchBundledSkills(onChange: () => void): vscode.Disposable {
+    const bundledDir = path.join(this.extensionPath, 'skills');
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(bundledDir, '**/*')
+    );
+    const handler = () => {
+      this.syncBundledSkills();
+      onChange();
+    };
+    watcher.onDidCreate(handler);
+    watcher.onDidChange(handler);
+    watcher.onDidDelete(handler);
+    return watcher;
   }
 
   private _copyDir(src: string, dest: string): void {
@@ -92,14 +106,9 @@ export class SkillManager {
         ? fs.readFileSync(versionPath, 'utf8').trim()
         : '1.0';
 
-      const displayName = entry.name
-        .replace(/^custtr-/, '')
-        .replace(/^psas-/, '')
-        .replace(/^m365-/, 'M365 ');
-
       skills.push({
         name: entry.name,
-        displayName,
+        displayName: entry.name,
         skillPath,
         mdPath,
         version,
