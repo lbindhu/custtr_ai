@@ -8,6 +8,7 @@ on:
       - 'extension/skills/**'
       - 'extension/src/**'
       - 'extension/media/**'
+      - 'extension/LICENSE'
       - 'README.md'
       - 'extension/README.md'
 
