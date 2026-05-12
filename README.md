@@ -91,3 +91,4 @@ When an update is available:
 ### Checking Your Version
 
 Your installed version and the latest available version are always visible in the sidebar.
+
