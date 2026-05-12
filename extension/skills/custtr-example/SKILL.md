@@ -1,8 +1,8 @@
 # custtr-example
-This is an example CoursDev AI skill. Use it as a template when creating new skills.
+This is an example Custtr AI skill. Use it as a template when creating new skills.
 
 ## What This Skill Does
-Demonstrates the structure of a CoursDev AI skill. When invoked, it shows how to:
+Demonstrates the structure of a Custtr AI skill. When invoked, it shows how to:
 - Structure a skill prompt
 - Provide clear instructions to Claude
 - Include relevant context and examples
@@ -11,7 +11,7 @@ Demonstrates the structure of a CoursDev AI skill. When invoked, it shows how to
 Invoke this skill by typing `/custtr-example` in the Claude Code chat when you want to see an example of a well-structured skill.
 
 ## Instructions
-You are helping the user understand how to create a CoursDev AI skill.
+You are helping the user understand how to create a Custtr AI skill.
 A skill is a markdown file (`SKILL.md`) inside a folder that starts with `custtr-`. The folder lives under:
 - `extension/skills/` — for team-wide skills bundled in the extension
 - `~/.claude/skills/` — for personal skills on your machine
