@@ -11,7 +11,6 @@ on:
       - 'extension/LICENSE'
       - 'README.md'
       - 'extension/README.md'
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -41,7 +40,7 @@ jobs:
         working-directory: extension
         run: |
           OLD=$(node -p "require('./package.json').version")
-          npm version major --no-git-tag-version
+          npm version patch --no-git-tag-version
           NEW=$(node -p "require('./package.json').version")
           echo "OLD=$OLD" >> $GITHUB_OUTPUT
           echo "NEW=$NEW" >> $GITHUB_OUTPUT
