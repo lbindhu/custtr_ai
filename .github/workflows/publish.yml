@@ -31,9 +31,6 @@ jobs:
         working-directory: extension
         run: npm run compile
 
-      - name: Copy README into extension folder
-        run: cp README.md extension/README.md
-
       - name: Package VSIX
         working-directory: extension
         run: npx @vscode/vsce package --no-dependencies

@@ -60,14 +60,13 @@
         "title": "CUSTTR AI: Open README"
       }
     ],
-    "menus": {},
     "configuration": {
-      "title": "CoursDev AI",
+      "title": "CUSTTR AI",
       "properties": {
         "custtr-ai.repoUrl": {
           "type": "string",
           "default": "https://github.com/lbindhu/custtr_ai",
-          "description": "GitHub Enterprise URL for the CourseDev AI repository"
+          "description": "GitHub URL for the CUSTTR AI repository"
         },
         "custtr-ai.releasesUrl": {
           "type": "string",

@@ -7,4 +7,3 @@ tsconfig.json
 **/*.ts
 !out/**
 node_modules/**
-.eslintrc.json

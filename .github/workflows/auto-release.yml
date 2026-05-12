@@ -7,6 +7,9 @@ on:
     paths:
       - 'extension/skills/**'
       - 'extension/src/**'
+      - 'extension/media/**'
+      - 'README.md'
+      - 'extension/README.md'
 
 permissions:
   contents: write
@@ -44,9 +47,6 @@ jobs:
       - name: Compile TypeScript
         working-directory: extension
         run: npm run compile
-
-      - name: Copy README into extension folder
-        run: cp README.md extension/README.md
 
       - name: Package VSIX
         working-directory: extension
