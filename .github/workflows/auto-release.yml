@@ -51,7 +51,9 @@ jobs:
 
       - name: Package VSIX
         working-directory: extension
-        run: npx @vscode/vsce package --no-dependencies
+        run: |
+          npx @vscode/vsce package --no-dependencies
+          ls -la *.vsix
 
       - name: Commit version bump
         run: |
@@ -63,8 +65,10 @@ jobs:
 
       - name: Create GitHub Release
         run: |
+          VSIX=$(ls extension/custtr-ai-${{ steps.bump.outputs.NEW }}.vsix 2>/dev/null || ls extension/*.vsix | head -1)
+          echo "Uploading: $VSIX"
           gh release create "v${{ steps.bump.outputs.NEW }}" \
-            "extension/custtr-ai-${{ steps.bump.outputs.NEW }}.vsix" \
+            "$VSIX" \
             --title "v${{ steps.bump.outputs.NEW }}" \
             --notes "Release v${{ steps.bump.outputs.NEW }}"
         env:
