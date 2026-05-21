@@ -1,0 +1,47 @@
+{
+  "skill_name": "training-advisor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to get started with Versal AI Engine. I have about 2 hours today. Can you help me figure out what to study?",
+      "expected_output": "Should recommend the Versal AI Engine Quick Start or Architecture course with level, duration, board requirement, spec sheet link, and portal link.",
+      "files": [],
+      "assertions": [
+        {"text": "names-correct-course: Response includes 'Versal AI Engine' course name (Quick Start or Architecture)", "passed": null, "evidence": ""},
+        {"text": "includes-level: Response states course level (Level 1 or similar)", "passed": null, "evidence": ""},
+        {"text": "includes-duration: Response mentions course duration (e.g., 8h, 16 hours)", "passed": null, "evidence": ""},
+        {"text": "includes-spec-link: Response includes a docs.amd.com link", "passed": null, "evidence": ""},
+        {"text": "includes-portal-link: Response includes a learningcatalog-amd.netexam.com link", "passed": null, "evidence": ""},
+        {"text": "includes-board-info: Response mentions board requirement (Not Applicable for AIE courses)", "passed": null, "evidence": ""},
+        {"text": "no-fabricated-links: All links match real known patterns from the course catalog", "passed": null, "evidence": ""}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I only have 20 minutes. I want to learn something about PetaLinux.",
+      "expected_output": "Should look up the PetaLinux PPT and recommend 1-2 specific modules covereable in under 20-30 minutes. Should name actual modules from the PPT.",
+      "files": [],
+      "assertions": [
+        {"text": "names-specific-module: Response names a specific module from the PetaLinux PPT, not just the course title", "passed": null, "evidence": ""},
+        {"text": "time-appropriate: Recommended content is described as covereable in 20-30 minutes", "passed": null, "evidence": ""},
+        {"text": "no-fabricated-content: Content references something that appears to come from the actual PPT, not generic AI knowledge", "passed": null, "evidence": ""},
+        {"text": "correct-time-bucket: Skill correctly identifies this as a less-than-30-minute scenario", "passed": null, "evidence": ""}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm an embedded software engineer new to AMD. I have a full day free and want a custom training plan on Zynq UltraScale+ MPSoC embedded software development. I have a ZCU104 board available.",
+      "expected_output": "Should build an 8-hour custom agenda with 10-20 topics and labs, timed slots, morning/afternoon structure, board info, and offer to modify.",
+      "files": [],
+      "assertions": [
+        {"text": "has-timed-agenda: Response includes specific time slots (e.g., 09:00-09:30 format)", "passed": null, "evidence": ""},
+        {"text": "has-morning-afternoon: Response has both Morning and Afternoon session sections", "passed": null, "evidence": ""},
+        {"text": "10-to-20-topics: Between 10 and 20 distinct topics or modules are listed", "passed": null, "evidence": ""},
+        {"text": "includes-lab: At least one hands-on lab is included in the agenda", "passed": null, "evidence": ""},
+        {"text": "mentions-board: ZCU104 or board requirement is explicitly mentioned", "passed": null, "evidence": ""},
+        {"text": "offers-modification: Response ends with offer to adjust or modify the plan", "passed": null, "evidence": ""},
+        {"text": "real-module-names: Module names are specific and appear sourced from actual course PPTs, not generic descriptions", "passed": null, "evidence": ""}
+      ]
+    }
+  ]
+}
