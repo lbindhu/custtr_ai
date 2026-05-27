@@ -2,7 +2,7 @@
   "name": "custtr-ai",
   "displayName": "CUSTTR AI",
   "description": "CoursDev team Claude Code skills extension",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "publisher": "custtr",
   "repository": {
     "type": "git",
