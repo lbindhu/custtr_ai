@@ -1,0 +1,77 @@
+{
+  "skill_name": "psas-sb-to-ilt",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I have a storyboard at C:\\Users\\sabpasha\\Downloads\\SBs to ILTs\\11. AMD Versal Adaptive SoC - Enabling Top-level RTL Flows_SB.pptx — can you convert it to ILT format? Save the output in the same folder with _ILT in the name.",
+      "expected_output": "Runs the conversion script, removes slide-number labels, NTD boxes, quiz icons, click instructions, and orange/red curved arrows. Saves the ILT file to the same folder. Prints a removal log showing at least 60 shapes removed.",
+      "assertions": [
+        {
+          "name": "output_file_exists",
+          "description": "ILT output PPTX file is created in the SBs to ILTs folder"
+        },
+        {
+          "name": "slide_numbers_removed",
+          "description": "No shapes with text matching 'Slide-N' or 'Slide NN / Branch...' patterns remain"
+        },
+        {
+          "name": "ntd_boxes_removed",
+          "description": "No shapes with text starting with 'NTD:' or 'Fully Shared Slide' remain"
+        },
+        {
+          "name": "click_instructions_cleaned",
+          "description": "Voiceover notes on slide 5 no longer contain 'Click each step to learn more'"
+        },
+        {
+          "name": "select_all_preserved",
+          "description": "'(Select all that apply)' text is still present in quiz slide question text"
+        },
+        {
+          "name": "svg_arrows_removed",
+          "description": "No shapes with alt-text 'Back outline' remain on slides 26 and 27"
+        }
+      ],
+      "files": ["C:\\Users\\sabpasha\\Downloads\\SBs to ILTs\\11. AMD Versal Adaptive SoC - Enabling Top-level RTL Flows_SB.pptx"]
+    },
+    {
+      "id": 1,
+      "prompt": "Convert the SB file at C:\\Users\\sabpasha\\Downloads\\SBs to ILTs\\02. Overview of the ROCm Platform_SB.pptx to ILT. Put the output in the same folder.",
+      "expected_output": "Runs the conversion script on the ROCm SB file, removes all interactive elements per the 5 rules, saves the ILT file. Reports how many shapes were removed.",
+      "assertions": [
+        {
+          "name": "output_file_exists",
+          "description": "ILT output PPTX is created as 02. Overview of the ROCm Platform_ILT.pptx"
+        },
+        {
+          "name": "ntd_boxes_removed",
+          "description": "No NTD/metadata boxes remain in the output"
+        },
+        {
+          "name": "slide_numbers_removed",
+          "description": "No slide-number label rectangles remain"
+        }
+      ],
+      "files": ["C:\\Users\\sabpasha\\Downloads\\SBs to ILTs\\02. Overview of the ROCm Platform_SB.pptx"]
+    },
+    {
+      "id": 2,
+      "prompt": "hey can you generate the ILT for this file: C:\\Users\\sabpasha\\Downloads\\SBs to ILTs\\11. AMD Versal Adaptive SoC - Enabling Top-level RTL Flows_SB.pptx — also explain what changes you made",
+      "expected_output": "Runs the conversion and then gives a clear summary of what was removed: slide numbers, NTD boxes, quiz icons, click instructions from voiceover, and orange curved arrows. Summary should be human-readable, not just a raw log.",
+      "assertions": [
+        {
+          "name": "output_file_created",
+          "description": "ILT PPTX output file is created"
+        },
+        {
+          "name": "explains_rules",
+          "description": "Response explains what was removed in plain language (not just raw script output)"
+        },
+        {
+          "name": "mentions_voiceover_cleanup",
+          "description": "Response mentions that click instructions were removed from speaker notes/voiceover"
+        }
+      ],
+      "files": ["C:\\Users\\sabpasha\\Downloads\\SBs to ILTs\\11. AMD Versal Adaptive SoC - Enabling Top-level RTL Flows_SB.pptx"]
+    }
+  ]
+}
