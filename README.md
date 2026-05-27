@@ -1,16 +1,6 @@
 # CUSTTR AI
 
-CUSTTR AI is a Visual Studio Code extension that distributes shared Claude Code skills to the CourseDev team. It adds a sidebar panel where you can browse, open, and contribute skills.
-
----
-
-## Features
-
-- A curated set of team skills bundled in the extension
-- A **Contribute via PR** button to share your personal skills with the team
-- Automatic update notifications
-
----
+CUSTTR AI is a Visual Studio Code extension that distributes shared Claude Code skills to the Customer Training team. It adds a sidebar panel where you can browse, open, and contribute skills.
 
 ## Installing the Extension
 
@@ -39,7 +29,7 @@ Click any skill name to open its `SKILL.md` file and read what it does.
 In any Claude Code chat, type the skill name with a forward slash:
 
 ```
-/custtr-standup
+For example: /custtr-standup
 ```
 
 Claude loads the skill instructions and guides you interactively through the task.
