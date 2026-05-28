@@ -5,6 +5,7 @@ import * as path from 'path';
 export interface Skill {
   name: string;
   displayName: string;
+  description: string;
   skillPath: string;
   mdPath: string;
   version: string;
@@ -71,6 +72,29 @@ export class SkillManager {
     return watcher;
   }
 
+  private _parseDescription(md: string): string {
+    const fm = md.match(/^---\s*\n([\s\S]*?)\n---/);
+    if (!fm) { return ''; }
+    const block = fm[1];
+    const m = block.match(/^description:\s*(.+)/m);
+    if (!m) { return ''; }
+    let val = m[1].trim();
+    if (val === '>') {
+      // multi-line folded scalar — collect indented lines
+      const lines: string[] = [];
+      let inDesc = false;
+      for (const line of block.split('\n')) {
+        if (/^description:\s*>/.test(line)) { inDesc = true; continue; }
+        if (inDesc) {
+          if (/^\s+/.test(line)) { lines.push(line.trim()); }
+          else { break; }
+        }
+      }
+      return lines.join(' ');
+    }
+    return val.replace(/^["']|["']$/g, '');
+  }
+
   private _copyDir(src: string, dest: string): void {
     if (!fs.existsSync(dest)) { fs.mkdirSync(dest, { recursive: true }); }
     for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
@@ -106,9 +130,13 @@ export class SkillManager {
         ? fs.readFileSync(versionPath, 'utf8').trim()
         : '';
 
+      const mdContent = fs.readFileSync(mdPath, 'utf8');
+      const description = this._parseDescription(mdContent);
+
       skills.push({
         name: entry.name,
         displayName: entry.name,
+        description,
         skillPath,
         mdPath,
         version,
