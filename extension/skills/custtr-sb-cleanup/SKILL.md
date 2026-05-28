@@ -58,7 +58,7 @@ images, icons, or text layout.
 ## Step 1 — Identify the input file
 
 Ask the user for the SB file path if they haven't provided one.
-Typical location: `C:\Users\sabpasha\Downloads\SBs to ILTs\<name>_SB_V<n>.pptx`
+Typical location: `C:\Users\<username>\Downloads\SBs to ILTs\<name>_SB_V<n>.pptx`
 
 Derive the output path automatically by stripping the version token `_V<n>`
 from the filename and keeping it in the same folder.
@@ -71,7 +71,7 @@ Unless the user specifies a different output path, use this derived path.
 ## Step 2 — Copy the file to the working folder
 
 ```bash
-cp "<input_path>" "C:/Users/sabpasha/.psas-ai/shared/sb_input.pptx"
+cp "<input_path>" "~/.psas-ai/shared/sb_input.pptx"
 ```
 
 ---
@@ -80,9 +80,9 @@ cp "<input_path>" "C:/Users/sabpasha/.psas-ai/shared/sb_input.pptx"
 
 ```bash
 PYTHONIOENCODING=utf-8 python3 \
-  "C:/Users/sabpasha/.claude/skills/psas-sb-cleanup/scripts/cleanup_sb.py" \
-  "C:/Users/sabpasha/.psas-ai/shared/sb_input.pptx" \
-  "C:/Users/sabpasha/.psas-ai/shared/sb_cleaned.pptx"
+  "~/.claude/skills/custtr-sb-cleanup/scripts/cleanup_sb.py" \
+  "~/.psas-ai/shared/sb_input.pptx" \
+  "~/.psas-ai/shared/sb_cleaned.pptx"
 ```
 
 The script prints a per-slide log of every element removed and a summary count.
@@ -93,7 +93,7 @@ Show this output to the user as confirmation.
 ## Step 4 — Copy the output to the destination
 
 ```bash
-cp "C:/Users/sabpasha/.psas-ai/shared/sb_cleaned.pptx" "<output_path>"
+cp "~/.psas-ai/shared/sb_cleaned.pptx" "<output_path>"
 ```
 
 Tell the user the full output path when done.
@@ -164,7 +164,7 @@ If the user wants it removed anyway, ask for the shape name and remove it manual
 
 Edit the script at:
 ```
-C:/Users/sabpasha/.claude/skills/psas-sb-cleanup/scripts/cleanup_sb.py
+~/.claude/skills/custtr-sb-cleanup/scripts/cleanup_sb.py
 ```
 
 Key functions and the rules they implement:

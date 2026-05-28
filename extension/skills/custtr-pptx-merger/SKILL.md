@@ -1,5 +1,5 @@
 ---
-name: psas-pptx-merger
+name: custtr-pptx-merger
 description: >
   USE THIS SKILL — NOT psas-claude-pptx — whenever slides are being moved or copied between
   .pptx files. This skill handles: merging decks, copying slides from one presentation to
@@ -27,7 +27,7 @@ bundled Python script (`scripts/pptx_merger.py`) that properly copies slide mast
 layouts, themes, media, charts, and all embedded parts — producing clean output that opens
 without PowerPoint's "Repair" dialog.
 
-The script is at: `~/.claude/skills/psas-pptx-merger/scripts/pptx_merger.py`
+The script is at: `~/.claude/skills/custtr-pptx-merger/scripts/pptx_merger.py`
 
 ---
 
@@ -109,7 +109,7 @@ Run these two lines to set up everything needed for the rest of the steps:
 
 ```bash
 PYTHON=$(python3 --version >/dev/null 2>&1 && echo python3 || echo python)
-SCRIPT=$($PYTHON -c "import os; print(os.path.expanduser('~/.claude/skills/psas-pptx-merger/scripts/pptx_merger.py'))")
+SCRIPT=$($PYTHON -c "import os; print(os.path.expanduser('~/.claude/skills/custtr-pptx-merger/scripts/pptx_merger.py'))")
 ```
 
 `PYTHON` gives `python3` on Linux/Mac and falls back to `python` on Windows. `SCRIPT` uses

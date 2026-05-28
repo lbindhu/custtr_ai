@@ -56,7 +56,7 @@ save the result. Do not alter any core content, images, icons, or text layout.
 ## Step 1 — Identify the input file
 
 Ask the user for the SB file path if they haven't provided one. Typical
-location pattern: `C:\Users\...\Downloads\SBs to ILTs\<name>_SB.pptx`.
+location pattern: `C:\Users\<username>\Downloads\SBs to ILTs\<name>_SB.pptx`.
 
 Derive the output path automatically by replacing `_SB` with `_ILT` in the
 filename (keeping it in the same folder), unless the user specifies otherwise.
@@ -78,7 +78,7 @@ pip install python-pptx 2>&1 | tail -3
 The bundled script works on a local path. Copy the input to a working location:
 
 ```bash
-cp "<input_path>" "C:/Users/sabpasha/.psas-ai/shared/sb_input.pptx"
+cp "<input_path>" "~/.psas-ai/shared/sb_input.pptx"
 ```
 
 ---
@@ -87,9 +87,9 @@ cp "<input_path>" "C:/Users/sabpasha/.psas-ai/shared/sb_input.pptx"
 
 ```bash
 PYTHONIOENCODING=utf-8 python3 \
-  "C:/Users/sabpasha/.claude/skills/psas-sb-to-ilt/scripts/convert_sb_to_ilt.py" \
-  "C:/Users/sabpasha/.psas-ai/shared/sb_input.pptx" \
-  "C:/Users/sabpasha/.psas-ai/shared/ilt_output.pptx"
+  "~/.claude/skills/custtr-sb-to-ilt/scripts/convert_sb_to_ilt.py" \
+  "~/.psas-ai/shared/sb_input.pptx" \
+  "~/.psas-ai/shared/ilt_output.pptx"
 ```
 
 The script prints a log of every shape removed and a total count. Show this
@@ -100,7 +100,7 @@ output to the user as confirmation.
 ## Step 5 — Copy the output to the destination
 
 ```bash
-cp "C:/Users/sabpasha/.psas-ai/shared/ilt_output.pptx" "<output_path>"
+cp "~/.psas-ai/shared/ilt_output.pptx" "<output_path>"
 ```
 
 Tell the user the full output path when done.
@@ -164,7 +164,7 @@ The script catches both `"Drag-and-drop"` (literal) and sentences like
 If rules change or new element types need removal, edit:
 
 ```
-C:/Users/sabpasha/.claude/skills/psas-sb-to-ilt/scripts/convert_sb_to_ilt.py
+~/.claude/skills/custtr-sb-to-ilt/scripts/convert_sb_to_ilt.py
 ```
 
 The script is self-contained and well-commented. Key functions:

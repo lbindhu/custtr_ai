@@ -1,5 +1,5 @@
 ---
-name: training-advisor
+name: custtr-training-advisior
 description: >
   AMD Customer Education Training Advisor. Use this skill whenever a user asks what AMD course to take,
   wants a learning recommendation, asks about Versal, FPGA, Vitis, AI Engine, embedded, PetaLinux,
