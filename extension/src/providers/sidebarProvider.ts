@@ -129,6 +129,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             <span class="skill-card-name">${esc(s.displayName)}</span>
             ${s.version ? `<span class="skill-ver">v${esc(s.version)}</span>` : ''}
           </div>
+          ${s.description ? `<div class="skill-card-desc">${esc(s.description.split('.')[0].trim())}</div>` : ''}
         </div>
         <div class="skill-card-actions">
           <button class="run-btn" title="Copy get-started command"
@@ -329,13 +330,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   .skill-avatar {
     width: 28px; height: 28px;
     border-radius: 6px;
-    background: var(--vscode-badge-background, rgba(128,128,128,0.15));
+    background: transparent;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-    color: var(--vscode-textLink-foreground);
-    transition: background 0.12s;
+    color: var(--vscode-foreground);
+    opacity: 0.5;
   }
-  .skill-card:hover .skill-avatar { opacity: 0.85; }
+  .skill-card:hover .skill-avatar { opacity: 0.8; }
 
   .skill-card-body { flex: 1; min-width: 0; }
   .skill-card-header {
@@ -343,10 +344,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     margin-bottom: 2px;
   }
   .skill-card-name {
-    font-size: 12px; font-weight: 600;
+    font-size: 13px; font-weight: 400;
+    font-family: var(--vscode-font-family);
     color: var(--vscode-foreground);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    text-transform: capitalize; flex: 1; min-width: 0;
+    text-transform: none; flex: 1; min-width: 0;
+  }
+  .skill-card-desc {
+    font-size: 11px; color: var(--vscode-descriptionForeground);
+    line-height: 1.4;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-top: 1px;
   }
   .skill-tag {
     font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
