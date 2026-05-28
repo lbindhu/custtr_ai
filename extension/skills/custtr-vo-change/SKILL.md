@@ -1,13 +1,6 @@
 ---
 name: custtr-vo-change
-description: >
-  Converts audio narration inside Articulate Storyline (.story) files to a different
-  ElevenLabs voice using Speech-to-Speech (STS) conversion, then replaces the audio
-  back in-place and saves the updated .story file(s).
-  Use this skill whenever the user mentions: changing voice in a .story file,
-  converting Storyline narration, replacing audio in Storyline, ElevenLabs voice swap
-  for Storyline, voice conversion for eLearning, batch audio replacement in .story files,
-  or any task involving changing the speaker voice inside a Storyline course.
+description: "Swaps the narrator voice in Articulate Storyline files via ElevenLabs."
   Also triggers when the user provides a .story file path and mentions ElevenLabs,
   a voice name, or asks to convert or update the narration.
   Always ask for the ElevenLabs API key at the start — never reuse one from memory.

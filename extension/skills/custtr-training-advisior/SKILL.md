@@ -1,13 +1,6 @@
 ---
 name: custtr-training-advisior
-description: >
-  AMD Customer Education Training Advisor. Use this skill whenever a user asks what AMD course to take,
-  wants a learning recommendation, asks about Versal, FPGA, Vitis, AI Engine, embedded, PetaLinux,
-  RFSoC, or any AMD product training. Triggers on: "what should I learn", "recommend a course",
-  "training advisor", "build curriculum", "custom training", "1-day training", "learning path",
-  "what course", "AMD training", "course recommendation", "how do I get started with", "which course",
-  "training plan", "study plan", or any question about AMD product education. When in doubt, trigger —
-  this skill has the full AMD course catalog and can always help orient the user.
+description: "Recommends AMD courses and builds learning paths for any AMD product."
 ---
 
 # AMD Customer Education Training Advisor

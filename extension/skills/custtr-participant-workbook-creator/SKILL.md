@@ -1,14 +1,6 @@
 ---
 name: custtr-participant-workbook-creator
-description: >
-  Assembles a CE (Customer Education) participant workbook from a folder of ILT PowerPoint modules.
-  Use this skill whenever the user wants to combine ILT PPT files into a participant workbook,
-  create a combined deck from training modules, merge course slides and export a notes PDF,
-  or produce a workbook PDF with sections and bookmarks from PowerPoint files.
-  Also triggers on: "combine ILT modules", "participant workbook", "course workbook",
-  "merge training PPTs", "notes PDF from slides", "CE workbook".
-  Always use this skill when the user mentions ILT modules, participant workbooks, or
-  assembling training content into a single deck — even if they only mention one or two steps.
+description: "Combines ILT PowerPoint modules into a single participant workbook PDF."
 ---
 
 <!-- psas-attribution:v2 -->

@@ -1,18 +1,6 @@
 ---
 name: custtr-sb-to-ilt
-description: >
-  Converts AMD PowerPoint Storyboard (SB) files into Instructor Led Training
-  (ILT) format by removing interactive/self-paced elements while preserving
-  all core learning content, images, icons, and layout. ALWAYS invoke this
-  skill automatically — without waiting for the user to ask — whenever the
-  user mentions "SB to ILT", "convert storyboard to ILT", "generate ILT from
-  SB", "make the ILT version", "create ILT PowerPoint", "strip interactivity
-  from the deck", provides a file path containing "_SB" or "SB.pptx", or
-  provides a PPTX file and asks to convert it for instructor-led delivery.
-  Also trigger when the user references removing slide numbers, outside-layout
-  boxes, click instructions, cross symbols, or orange curved arrows from a
-  training PowerPoint. Do not ask for confirmation before invoking — just run
-  the conversion. When in doubt, trigger — the user can always redirect.
+description: "Converts a Storyboard deck into ILT format by removing interactive elements."
 ---
 
 # SB → ILT Converter
