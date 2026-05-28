@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "target_release": "",
+  "deck": "",
+  "portfolio_scope_phrases": [],
+  "product_variants": [],
+  "stale_terms": [
+    {
+      "id": "ST-EXAMPLE",
+      "token": "EXAMPLE_TOKEN",
+      "skip_if_preceded_by": [],
+      "skip_if_followed_by": [],
+      "replace_with": "",
+      "source_ids": [],
+      "rationale": "Replace with per-deck entries authored from sources."
+    }
+  ],
+  "intentionally_kept": []
+}
