@@ -1,17 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Mortarboard top flat diamond -->
+  <polygon points="10,42 50,24 90,42 50,60" fill="#00897B"/>
   <!-- Cap body -->
-  <polygon points="32,56 68,56 68,72 32,72" fill="#005F56"/>
-  <!-- Mortarboard top (wide diamond) -->
-  <polygon points="10,44 50,28 90,44 50,60" fill="#00B09B"/>
-  <!-- Highlight edge -->
-  <polygon points="10,44 50,28 90,44 50,60" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.4"/>
+  <rect x="33" y="55" width="34" height="18" rx="1" fill="#00897B"/>
+  <!-- White gap between top and body -->
+  <polygon points="33,55 67,55 67,58 33,58" fill="#ffffff"/>
   <!-- Tassel cord -->
-  <line x1="90" y1="44" x2="90" y2="68" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <line x1="90" y1="42" x2="90" y2="65" stroke="#00897B" stroke-width="3.5" stroke-linecap="round"/>
   <!-- Tassel weight -->
-  <rect x="85" y="66" width="10" height="12" rx="2" fill="#FFD700"/>
-  <!-- Tassel fringe -->
-  <line x1="85" y1="78" x2="83" y2="85" stroke="#FFD700" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="88" y1="78" x2="87" y2="86" stroke="#FFD700" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="91" y1="78" x2="91" y2="86" stroke="#FFD700" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="94" y1="78" x2="96" y2="85" stroke="#FFD700" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="85" y="63" width="10" height="11" rx="2" fill="#00897B"/>
 </svg>

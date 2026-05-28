@@ -444,8 +444,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   <div class="header">
     <div class="header-top">
       <div class="header-logo">
-        <svg viewBox="0 0 20 20" fill="white" width="16" height="16">
-          <path d="M10 2L3 7v9h5v-5h4v5h5V7l-7-5z"/>
+        <svg viewBox="0 0 100 100" width="18" height="18">
+          <!-- Mortarboard top -->
+          <polygon points="10,42 50,24 90,42 50,60" fill="white"/>
+          <!-- Cap body -->
+          <rect x="33" y="55" width="34" height="18" rx="1" fill="white"/>
+          <!-- White gap line -->
+          <rect x="33" y="55" width="34" height="3" fill="rgba(255,255,255,0.3)"/>
+          <!-- Tassel cord -->
+          <line x1="90" y1="42" x2="90" y2="65" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+          <!-- Tassel weight -->
+          <rect x="85" y="63" width="10" height="11" rx="2" fill="white"/>
         </svg>
       </div>
       <div class="header-brand">
