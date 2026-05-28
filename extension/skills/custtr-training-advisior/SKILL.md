@@ -55,10 +55,26 @@ Parse into one of three buckets:
 - Describe what the lab does and roughly how long it takes
 
 ### More than 1 hour
-Ask: **"Would you prefer I recommend an existing AMD course, or build you a custom 1-day training plan tailored to your goals?"**
+Ask: **"Which format works best for you?"**
+1. **Existing Course** — best matching course(s) from the AMD catalog
+2. **Custom 1-Day Plan** — structured 8-hour agenda tailored to your goals
+3. **Recommended Learning Path** — phased sequence from beginner to advanced
+
+For Custom 1-Day Plans and Recommended Learning Paths, recommendations must be driven equally by **role and goal**:
+- **50% Goal** — the topic area the student wants to learn (e.g., Versal, AI Engine, Embedded)
+- **50% Role** — the student's job function shapes which angle to take within that topic
+  - FPGA Designer → RTL design, timing, IP, DFX modules within the topic
+  - Embedded SW Engineer → boot, EDF, driver, Linux modules within the topic
+  - System Architect → architecture, NoC, integration, system planning modules
+  - AI Engine Developer → kernel programming, graph topology, data movers
+  - ML Engineer → inference, quantization, deployment modules
+  - HLS Developer → HLS, accelerator, Alveo modules
+  - New to AMD → always Level 1, foundational modules regardless of topic
+
+Never build a plan based solely on the topic — always cross-reference with the role to pick the right modules, labs, and sequencing within that topic.
 
 **If Existing Course:**
-Read the curriculum catalog (see Knowledge Base below) and present the best matching course(s) in this format:
+Read the curriculum catalog (see Knowledge Base below) and present the best matching course(s) filtered by both role and goal:
 
 | Field | Detail |
 |---|---|
@@ -76,6 +92,8 @@ If multiple courses match, list them in recommended order with a sentence explai
 **If Custom 1-Day Plan:**
 Build an 8-hour structured agenda combining 10-20 related topics and labs.
 Pull actual content from the PPTs and labs folders — do not invent module names.
+The agenda must reflect both the student's goal (topic domain) AND their role (which modules within that domain suit their workflow).
+For example: an Embedded SW Engineer learning Versal gets boot/EDF/Linux modules, not RTL or NoC architecture slides.
 
 Format the plan as a timed agenda:
 
