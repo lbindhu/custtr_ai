@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AMD Training Advisor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal: #00B2A9; --teal-dark: #008C85; --teal-light: #E0F5F4;
+      --dark: #1A1A1A; --gray: #3D3D3D;
+      --light: #F5F5F5; --border: #E0E0E0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #F0F0F0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .hidden { display: none !important; }
+
+    /* ── Setup Screen ─────────────────────────────── */
+    #setup-screen {
+      width: 100%; max-width: 740px;
+      background: white; border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12); overflow: hidden;
+    }
+    .setup-header {
+      background: var(--dark); padding: 28px 32px 24px; text-align: center;
+    }
+    .setup-header .logo { font-size: 38px; margin-bottom: 10px; }
+    .setup-header h1 { color: white; font-size: 20px; font-weight: 700; }
+    .setup-header p  { color: #9E9E9E; font-size: 13px; margin-top: 5px; }
+
+    .setup-body { padding: 28px 32px 32px; }
+    .setup-body > .lead {
+      font-size: 13.5px; color: #555; text-align: center;
+      margin-bottom: 24px; line-height: 1.6;
+    }
+
+    /* Mode cards */
+    .mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .mode-cards { grid-template-columns: 1fr; } }
+
+    .mode-card {
+      border: 2px solid var(--border); border-radius: 12px;
+      padding: 22px 20px; display: flex; flex-direction: column; gap: 14px;
+      transition: border-color 0.2s;
+    }
+    .mode-card.ai { border-color: #B2E4E2; background: #F5FFFE; }
+
+    .mode-card-header { display: flex; align-items: center; gap: 10px; }
+    .mode-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+      background: #F0F0F0; flex-shrink: 0;
+    }
+    .mode-card.ai .mode-icon { background: #D4F0EE; }
+    .mode-card-header h3 { font-size: 15px; font-weight: 700; color: var(--dark); }
+    .mode-card-header .badge {
+      font-size: 10px; font-weight: 700; padding: 3px 8px;
+      border-radius: 20px; letter-spacing: 0.4px; margin-left: auto;
+    }
+    .badge-free { background: #EEE; color: #555; }
+    .badge-ai   { background: #B2E4E2; color: #005E5A; }
+
+    .mode-features { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .mode-features li {
+      font-size: 12.5px; color: #555; display: flex; gap: 8px; align-items: flex-start;
+    }
+    .mode-features li .ic { flex-shrink: 0; margin-top: 1px; }
+    .mode-features li .ic.y { color: var(--teal-dark); }
+    .mode-features li .ic.n { color: #BDBDBD; }
+
+    /* API key input inside AI card */
+    .api-key-section { display: flex; flex-direction: column; gap: 8px; }
+    .api-key-section label { font-size: 12px; font-weight: 600; color: #777; }
+    .api-key-section input {
+      border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 9px 12px; font-size: 13px; outline: none;
+      font-family: monospace; letter-spacing: 1px; transition: border-color 0.2s;
+      width: 100%;
+    }
+    .api-key-section input:focus { border-color: var(--teal); }
+    .api-key-hint { font-size: 11px; color: #9E9E9E; line-height: 1.5; }
+    .api-key-hint a { color: var(--teal-dark); text-decoration: none; }
+
+    /* Mode buttons */
+    .mode-btn {
+      padding: 11px 16px; border-radius: 8px;
+      font-size: 13.5px; font-weight: 600; cursor: pointer;
+      border: none; width: 100%; transition: all 0.18s; margin-top: auto;
+    }
+    .demo-btn { background: #F0F0F0; color: var(--dark); }
+    .demo-btn:hover { background: #E0E0E0; }
+    .ai-btn { background: var(--teal); color: white; }
+    .ai-btn:hover { background: var(--teal-dark); }
+    .ai-btn:disabled { background: #BDBDBD; cursor: not-allowed; }
+
+    /* ── Chat Wrapper ─────────────────────────────── */
+    #chat-wrapper {
+      width: 100%; max-width: 780px; background: white;
+      border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      display: flex; flex-direction: column;
+      height: 90vh; max-height: 860px; overflow: hidden;
+    }
+
+    .mode-pill {
+      font-size: 11px; font-weight: 700; padding: 3px 10px;
+      border-radius: 20px; letter-spacing: 0.3px;
+    }
+    .mode-pill.demo { background: #E0E0E0; color: #555; }
+    .mode-pill.ai   { background: #B2E4E2; color: #005E5A; }
+
+    /* ── Header ── */
+    .chat-header {
+      background: var(--dark); padding: 15px 20px;
+      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    .header-avatar {
+      width: 42px; height: 42px; background: var(--teal);
+      border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 19px; flex-shrink: 0;
+    }
+    .header-text h1 { font-size: 15px; font-weight: 600; color: white; }
+    .header-text p  { font-size: 11.5px; color: #9E9E9E; margin-top: 2px; }
+    .header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .export-btn, .fb-summary-btn {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      color: white; font-size: 12px; padding: 5px 11px; border-radius: 6px;
+      cursor: pointer; transition: background 0.18s; white-space: nowrap;
+    }
+    .export-btn:hover, .fb-summary-btn:hover { background: rgba(255,255,255,0.22); }
+
+    /* ── Progress pills ── */
+    .topic-bar {
+      background: #FAFAFA; border-bottom: 1px solid var(--border);
+      padding: 9px 20px; display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap;
+    }
+    .topic-pill {
+      font-size: 11px; font-weight: 600; padding: 3px 11px;
+      border-radius: 20px; border: 1.5px solid var(--border);
+      color: #9E9E9E; background: white; text-transform: uppercase;
+      letter-spacing: 0.2px; transition: all 0.2s;
+    }
+    .topic-pill.active { border-color: var(--teal); color: var(--teal); background: var(--teal-light); }
+    .topic-pill.done   { border-color: var(--teal-dark); color: var(--teal-dark); background: #D4F0EE; }
+
+    /* ── Messages ── */
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 20px 16px 10px;
+      display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth;
+    }
+    .chat-messages::-webkit-scrollbar { width: 5px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: #DDD; border-radius: 3px; }
+
+    .msg-row { display: flex; align-items: flex-end; gap: 10px; animation: fadeUp 0.28s ease; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg-row.user { flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--teal); display: flex; align-items: center;
+      justify-content: center; font-size: 13px; flex-shrink: 0; align-self: flex-start;
+    }
+    .msg-row.user .msg-avatar { background: var(--gray); }
+
+    .msg-content { display: flex; flex-direction: column; max-width: 74%; }
+    .msg-row.user .msg-content { align-items: flex-end; }
+
+    .msg-bubble {
+      padding: 11px 15px; border-radius: 16px; font-size: 13.5px;
+      line-height: 1.6; color: var(--dark);
+      background: white; border: 1px solid var(--border); border-bottom-left-radius: 4px;
+    }
+    .msg-row.user .msg-bubble {
+      background: var(--teal); color: white; border: none;
+      border-bottom-right-radius: 4px; border-bottom-left-radius: 16px;
+    }
+    .msg-bubble b  { font-weight: 600; }
+    .msg-bubble h2 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .msg-bubble h3 { font-size: 13px; font-weight: 600; margin: 8px 0 4px; }
+    .msg-bubble ul { padding-left: 18px; margin: 6px 0; }
+    .msg-bubble li { margin-bottom: 3px; }
+    .msg-bubble a  { color: var(--teal-dark); text-decoration: none; }
+    .msg-row.user .msg-bubble a { color: #A0E8E5; }
+    .msg-bubble a:hover { text-decoration: underline; }
+    .msg-bubble pre {
+      background: #F5F5F5; border: 1px solid #E0E0E0; border-radius: 6px;
+      padding: 10px 12px; font-size: 12px; font-family: monospace;
+      overflow-x: auto; margin: 8px 0; white-space: pre-wrap; line-height: 1.6;
+    }
+    .msg-bubble code {
+      background: #F0F0F0; border-radius: 3px;
+      padding: 1px 5px; font-size: 12.5px; font-family: monospace;
+    }
+    .msg-bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+    /* Feedback */
+    .feedback-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-left: 2px; }
+    .feedback-label { font-size: 11px; color: #BDBDBD; }
+    .fb-btn {
+      background: none; border: 1px solid var(--border); border-radius: 20px;
+      padding: 2px 8px; cursor: pointer; font-size: 13px;
+      transition: all 0.16s; color: #9E9E9E;
+    }
+    .fb-btn:hover { border-color: #999; color: var(--dark); }
+    .fb-btn.selected-up   { background: var(--teal-light); border-color: var(--teal); }
+    .fb-btn.selected-down { background: #FFEBEE; border-color: #E57373; }
+
+    /* Typing */
+    .typing-indicator { display: flex; align-items: flex-start; gap: 10px; animation: fadeUp 0.28s ease; }
+    .typing-dots {
+      background: white; border: 1px solid var(--border);
+      border-radius: 16px; border-bottom-left-radius: 4px;
+      padding: 12px 16px; display: flex; gap: 5px; align-items: center;
+    }
+    .typing-dots span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #BDBDBD; animation: bounce 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%,60%,100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* Streaming cursor */
+    .cursor {
+      display: inline-block; width: 2px; height: 14px;
+      background: var(--dark); margin-left: 2px;
+      animation: blink 0.8s infinite; vertical-align: middle;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* Quick replies */
+    .quick-replies {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 10px 16px 12px; flex-shrink: 0;
+      border-top: 1px solid var(--border); background: #FAFAFA; min-height: 48px;
+    }
+    .qr-btn {
+      padding: 7px 14px; border: 1.5px solid var(--teal);
+      color: var(--teal); background: white; border-radius: 20px;
+      font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.16s;
+    }
+    .qr-btn:hover { background: var(--teal); color: white; }
+
+    /* Input area */
+    .chat-input-area {
+      display: flex; align-items: center; padding: 10px 14px;
+      gap: 10px; border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .chat-input {
+      flex: 1; border: 1.5px solid var(--border); border-radius: 22px;
+      padding: 9px 16px; font-size: 14px; outline: none;
+      transition: border-color 0.2s; font-family: inherit;
+      resize: none; max-height: 90px; line-height: 1.4;
+    }
+    .chat-input:focus { border-color: var(--teal); }
+    .send-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--teal); color: white; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all 0.18s;
+    }
+    .send-btn:hover { background: var(--teal-dark); }
+    .send-btn:disabled { background: #BDBDBD; cursor: not-allowed; }
+    .send-btn svg { width: 17px; height: 17px; fill: white; }
+    .reset-btn {
+      background: none; border: none; cursor: pointer;
+      color: #BDBDBD; font-size: 17px; padding: 6px;
+      border-radius: 8px; transition: color 0.2s;
+    }
+    .reset-btn:hover { color: var(--teal); }
+
+    .amd-logo {
+      text-align: center; font-size: 10px; color: #BDBDBD;
+      padding: 5px; letter-spacing: 1px; font-weight: 600; flex-shrink: 0;
+    }
+
+    /* ── Feedback Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; animation: fadeUp 0.2s ease;
+    }
+    .modal {
+      background: white; border-radius: 14px; width: 100%; max-width: 440px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2); overflow: hidden;
+    }
+    .modal-header {
+      background: var(--dark); padding: 18px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h2 { color: white; font-size: 15px; font-weight: 700; }
+    .modal-close {
+      background: none; border: none; color: #999; font-size: 20px;
+      cursor: pointer; line-height: 1; padding: 0 2px;
+    }
+    .modal-close:hover { color: white; }
+    .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+    .form-field { display: flex; flex-direction: column; gap: 5px; }
+    .form-field label { font-size: 12px; font-weight: 600; color: #555; }
+    .form-field input, .form-field textarea {
+      border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 9px 12px; font-size: 13px; outline: none;
+      font-family: inherit; transition: border-color 0.2s; width: 100%;
+    }
+    .form-field input:focus, .form-field textarea:focus { border-color: var(--teal); }
+    .form-field textarea { resize: vertical; min-height: 100px; max-height: 180px; line-height: 1.5; }
+    .word-count { font-size: 11px; color: #BDBDBD; text-align: right; margin-top: 2px; }
+    .word-count.over { color: #E57373; }
+    .modal-footer {
+      padding: 14px 24px 20px; display: flex; gap: 10px; justify-content: flex-end;
+    }
+    .modal-cancel {
+      padding: 9px 18px; border-radius: 8px; border: 1.5px solid var(--border);
+      background: white; color: #555; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: all 0.16s;
+    }
+    .modal-cancel:hover { background: #f5f5f5; }
+    .modal-send {
+      padding: 9px 20px; border-radius: 8px; border: none;
+      background: var(--teal); color: white; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background 0.16s;
+    }
+    .modal-send:hover { background: var(--teal-dark); }
+    .modal-send:disabled { background: #BDBDBD; cursor: not-allowed; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--dark); color: white; padding: 10px 20px;
+      border-radius: 8px; font-size: 13px; z-index: 999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: fadeUp 0.3s ease;
+    }
+    .toast.err { background: #C62828; }
+
+    /* ── Print styles ── */
+    @media print {
+      body { background: white; padding: 0; }
+      #chat-wrapper, #setup-screen { display: none !important; }
+      #print-area { display: block !important; }
+    }
+    #print-area {
+      display: none; font-family: -apple-system, sans-serif;
+      max-width: 700px; margin: 0 auto; padding: 32px;
+    }
+    #print-area h1 {
+      font-size: 22px; color: var(--dark);
+      border-bottom: 3px solid var(--teal); padding-bottom: 10px; margin-bottom: 18px;
+    }
+    #print-area .print-meta { font-size: 12px; color: #777; margin-bottom: 22px; }
+    #print-area .print-section { margin-bottom: 22px; }
+    #print-area .print-section h2 {
+      font-size: 13px; color: var(--teal-dark); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+    }
+    #print-area .print-content { font-size: 13px; line-height: 1.7; color: #333; }
+    #print-area .print-footer {
+      margin-top: 32px; font-size: 11px; color: #BDBDBD;
+      border-top: 1px solid #EEE; padding-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Setup Screen ══════════════════════════════════════════════ -->
+<div id="setup-screen">
+  <div class="setup-header">
+    <div class="logo">🎓</div>
+    <h1>AMD Training Advisor</h1>
+    <p>Role-based personalized AMD learning paths · Customer Education 2025.2</p>
+  </div>
+  <div class="setup-body">
+    <p class="lead">
+      Choose how you'd like to use the advisor.<br>
+      You can explore the full experience right now — no API key required.
+    </p>
+
+    <div class="mode-cards">
+
+      <!-- Demo Mode card -->
+      <div class="mode-card demo">
+        <div class="mode-card-header">
+          <div class="mode-icon">🎮</div>
+          <div><h3>Demo Mode</h3></div>
+          <span class="badge badge-free">NO KEY NEEDED</span>
+        </div>
+        <ul class="mode-features">
+          <li><span class="ic y">✓</span> Works instantly — no setup</li>
+          <li><span class="ic y">✓</span> 8 role types supported</li>
+          <li><span class="ic y">✓</span> Covers all AMD topic areas</li>
+          <li><span class="ic y">✓</span> Course cards with official links</li>
+          <li><span class="ic y">✓</span> Export plan &amp; feedback buttons</li>
+          <li><span class="ic n">✗</span> Fixed pre-written responses</li>
+          <li><span class="ic n">✗</span> Cannot answer free-form questions</li>
+        </ul>
+        <button class="mode-btn demo-btn" onclick="startDemoMode()">
+          Continue without API key →
+        </button>
+      </div>
+
+      <!-- AI Mode card -->
+      <div class="mode-card ai">
+        <div class="mode-card-header">
+          <div class="mode-icon">🤖</div>
+          <div><h3>AI Mode</h3></div>
+          <span class="badge badge-ai">CLAUDE AI</span>
+        </div>
+        <ul class="mode-features">
+          <li><span class="ic y">✓</span> Live Claude AI — streaming responses</li>
+          <li><span class="ic y">✓</span> Role + goal personalization</li>
+          <li><span class="ic y">✓</span> Ask any question in your own words</li>
+          <li><span class="ic y">✓</span> Dynamic custom 1-day training plans</li>
+          <li><span class="ic y">✓</span> Phased learning path sequences</li>
+          <li><span class="ic y">✓</span> Parent course attribution on all modules</li>
+          <li><span class="ic y">✓</span> Export plan &amp; feedback buttons</li>
+        </ul>
+        <div class="api-key-section">
+          <label for="api-key-input">API Key</label>
+          <input type="password" id="api-key-input"
+            placeholder="AMD Gateway key or sk-ant-… Anthropic key"
+            oninput="validateKey(this.value)"
+            onkeydown="if(event.key==='Enter')startAIMode()">
+          <span class="api-key-hint">
+            <b>AMD LLM Gateway key</b> (e.g. <code style="font-size:10px">afc838cb…</code>) — uses <b>llm-api.amd.com</b><br>
+            Or an <b>Anthropic key</b> (starts with <code style="font-size:10px">sk-ant-</code>) — uses api.anthropic.com<br>
+            Never stored beyond this session.
+          </span>
+        </div>
+        <button class="mode-btn ai-btn" id="start-ai-btn" disabled onclick="startAIMode()">
+          Start with Claude AI →
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ Chat Screen ═══════════════════════════════════════════════ -->
+<div id="chat-wrapper" class="hidden">
+  <div class="chat-header">
+    <div class="header-avatar">🎓</div>
+    <div class="header-text">
+      <h1>AMD Training Advisor</h1>
+      <p id="header-sub">Personalized learning paths · 2025.2 Catalog</p>
+    </div>
+    <div class="header-actions">
+      <span class="mode-pill hidden" id="mode-pill"></span>
+      <button class="export-btn hidden" id="export-btn" onclick="exportPlan()">📥 Export Plan</button>
+      <button class="fb-summary-btn hidden" id="fb-summary-btn" onclick="showFeedbackSummary()">📊 Feedback</button>
+    </div>
+  </div>
+
+  <div class="topic-bar">
+    <div class="topic-pill active" id="pill-0">Step 1: Goal</div>
+    <div class="topic-pill" id="pill-1">Step 2: Role</div>
+    <div class="topic-pill" id="pill-2">Step 3: Time</div>
+    <div class="topic-pill" id="pill-3">Step 4: Recommendation</div>
+  </div>
+
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="quick-replies" id="quick-replies"></div>
+
+  <div class="chat-input-area">
+    <button class="reset-btn" title="Start over" onclick="resetChat()">↺</button>
+    <textarea class="chat-input" id="chat-input" rows="1"
+      placeholder="Type your message…"
+      onkeydown="handleKey(event)"
+      oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="send-btn" onclick="handleSend()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+  <div class="amd-logo">AMD · CUSTOMER EDUCATION</div>
+</div>
+
+<!-- ══ Feedback Modal ════════════════════════════════════════════ -->
+<div id="feedback-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeFeedbackModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📝 Send Feedback</h2>
+      <button class="modal-close" onclick="closeFeedbackModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label for="fb-name">Your Name</label>
+        <input type="text" id="fb-name" placeholder="e.g. John Smith" maxlength="100">
+      </div>
+      <div class="form-field">
+        <label for="fb-email">Your Email</label>
+        <input type="email" id="fb-email" placeholder="e.g. you@amd.com" maxlength="100">
+      </div>
+      <div class="form-field">
+        <label for="fb-desc">Feedback <span style="font-weight:400;color:#999">(max 250 words)</span></label>
+        <textarea id="fb-desc" placeholder="Tell us what worked well, what could be improved, or anything else…" oninput="updateWordCount(this)"></textarea>
+        <div class="word-count" id="fb-word-count">0 / 250 words</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeFeedbackModal()">Cancel</button>
+      <button class="modal-send" id="fb-send-btn" onclick="sendFeedback()">Send Feedback ✉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Print Area ════════════════════════════════════════════════ -->
+<div id="print-area">
+  <h1>🎓 AMD Training Advisor — Learning Plan</h1>
+  <div class="print-meta" id="print-meta"></div>
+  <div id="print-content"></div>
+  <div class="print-footer">Generated by AMD Training Advisor · AMD Customer Education 2025.2</div>
+</div>
+
+<script>
+// ── Claude system prompt (AI mode) ───────────────────────────────
+const SYSTEM_PROMPT = `You are an AMD Customer Education Training Advisor. Guide students to the right AMD learning content based on their goal, role, and available time.
+
+## Conversation Flow — follow this exact sequence
+
+**Step 1 — Goal**
+Open with a short greeting then ask the question. Keep it to 2-3 sentences. Do NOT add topic tables or bullet lists in the greeting — just ask the question.
+Example: "Hello! 👋 Welcome to the AMD Training Advisor. I'll help you find the right learning content based on your goal, role, and available time. What would you like to learn today?"
+Map the answer to: FPGA Design | Versal Adaptive SoC | Versal AI Engine | Embedded/Zynq/MPSoC/EDF | Machine Learning/Vitis AI | HLS/Accelerator | x86 Embedded
+
+**Step 2 — Role**
+Ask: "Which of these roles best describes you?"
+Present numbered list:
+1. FPGA Designer — RTL, Vivado, timing, UltraScale, DFX
+2. Embedded Software Engineer — EDF, Yocto, boot, Zynq/MPSoC/RFSoC
+3. AI Engine Developer — AIE/AIE-ML, graph/kernel programming, DSP
+4. ML / Data Science Engineer — Vitis AI, inference, Kria KV260/KR260
+5. System Architect — Versal architecture, NoC, system planning, integration
+6. HLS / Accelerator Developer — Vitis HLS, Alveo, accelerator design
+7. x86 Embedded Engineer — Intel-to-AMD migration, x86 embedded development
+8. New to AMD / Student — Level 1 courses across any domain, guided onboarding
+
+Use BOTH role and goal together to filter recommendations. If user stated role already, skip this step.
+
+**Step 3 — Time Available**
+Ask: "How much time can you spare for learning today?"
+- < 30 min → single module with: Module name, Course (parent course name), Duration, What you'll learn
+- 30–60 min → module + lab, each with: Module/Lab name, Course (parent course name), Duration, What you'll learn/do
+- > 1 hour → ask: "Which format works best for you? 1) Existing Course 2) Custom 1-Day Plan 3) Recommended Learning Path"
+
+## Role + Goal Weighting
+For Custom 1-Day Plans and Recommended Learning Paths, ALWAYS weight recommendations equally between role and goal — 50% each:
+- **Goal (50%)** defines the topic domain (e.g., Versal, AI Engine, Embedded)
+- **Role (50%)** defines the angle within that domain:
+  - FPGA Designer → RTL, timing, IP, synthesis, DFX modules
+  - Embedded SW Engineer → boot, EDF, drivers, Linux application modules
+  - System Architect → architecture overview, NoC, system planning, integration modules
+  - AI Engine Developer → kernel programming, graph topology, data movers
+  - ML / Data Science Engineer → inference, quantization, deployment modules
+  - HLS / Accelerator Developer → HLS flow, directives, Alveo, accelerator modules
+  - x86 Embedded Engineer → migration guides, x86 embedded platform modules
+  - New to AMD / Student → Level 1 foundational modules only, regardless of topic
+
+Never derive a plan from the topic alone. Always cross-reference with the role to select the right modules, labs, and course sequence.
+
+## Output Formats
+
+### Single Module (< 30 min)
+Use this EXACT format:
+**Module:** [Module name]
+**Course:** [Parent course name]
+**Duration:** ~X minutes
+**What you'll learn:**
+- [point 1]
+- [point 2]
+- [point 3]
+
+### Module + Lab (30–60 min)
+Use this EXACT format:
+**Module:** [Module name]
+**Course:** [Parent course name]
+**Duration:** ~X minutes
+**What you'll learn:**
+- [point 1]
+- [point 2]
+
+**Lab:** [Lab name]
+**Course:** [Parent course name]
+**Duration:** ~X minutes
+**What you'll do:**
+- [point 1]
+- [point 2]
+
+**Hardware needed:** [board or "No board needed"]
+
+### Existing Course
+Use a markdown table with NO empty rows:
+| Field | Detail |
+|---|---|
+| Course Name | [name] |
+| Level | [1/2/3/4] |
+| Duration | [Xh] |
+| Required/Optional | [value] |
+| Delivery | [Classroom/On-demand/Both] |
+| Demo Board | [board or "Not Applicable"] |
+| Spec Sheet | [link] |
+| Customer Portal | [link or "Not available on portal"] |
+Follow each table with one sentence explaining why it fits the user's role and goal.
+
+### Custom 1-Day Plan
+Use this EXACT format:
+---
+**CUSTOM 1-DAY TRAINING PLAN: [Topic] — [Role]**
+
+**MORNING SESSION (4 hours)**
+| Time | Module | Description | Source |
+|---|---|---|---|
+| 09:00 – 09:30 | [Module] | [brief description] | [Course name] |
+| 09:30 – 10:30 | [Module] | [brief description] | [Course name] |
+| 10:30 – 10:45 | ☕ Break | | |
+| 10:45 – 12:00 | Lab: [Lab name] | [what they'll do] | [Course name] |
+| 12:00 – 13:00 | 🍽 Lunch | | |
+
+**AFTERNOON SESSION (4 hours)**
+| Time | Module | Description | Source |
+|---|---|---|---|
+| 13:00 – 14:00 | [Module] | [brief description] | [Course name] |
+| 14:00 – 15:30 | Lab: [Lab name] | [what they'll do] | [Course name] |
+| 15:30 – 15:45 | ☕ Break | | |
+| 15:45 – 17:00 | [Module] | [brief description] | [Course name] |
+
+**Hardware needed:** [board or "No board needed"]
+**Tools:** [software tools]
+---
+End with: "Would you like to adjust anything — swap a topic, add a lab, or change the pacing?"
+
+### Recommended Learning Path
+Use this EXACT format:
+---
+**RECOMMENDED LEARNING PATH: [Role] — [Goal]**
+
+**Phase 1 — Foundation**
+**1. [Course Name]** *(Level X, Xh, Delivery)*
+- Why: [one sentence reason]
+- 🔗 Spec Sheet: [link]
+- 🎓 Portal: [link or "Not available on portal"]
+
+**Phase 2 — Core Skills**
+**2. [Course Name]** *(Level X, Xh, Delivery)*
+- Why: [one sentence reason]
+- 🔗 Spec Sheet: [link]
+- 🎓 Portal: [link or "Not available on portal"]
+
+**Phase 3 — Advanced**
+**3. [Course Name]** *(Level X, Xh, Delivery)*
+- Why: [one sentence reason]
+- 🔗 Spec Sheet: [link]
+- 🎓 Portal: [link or "Not available on portal"]
+
+---
+**Estimated total:** ~Xh across X courses
+**Hardware needed:** [board or "No board needed"]
+
+---
+End with: "Would you like to go deeper on any phase, swap a course, or build a 1-day plan?"
+
+## Formatting Rules (apply to ALL responses)
+- No empty rows in tables
+- No blank lines between bullet points within a single block
+- No empty markdown headers
+- Keep responses concise — no preamble before the formatted output
+- Always bold section headers
+
+## Rules
+- Always name the PARENT COURSE when recommending a module or lab
+- Role shapes which content is prioritized (FPGA Designer → RTL/Vivado tracks; Embedded SW → EDF/boot tracks)
+- Always state board requirements
+- Only use real AMD course links — NEVER fabricate links
+- New to AMD / Student → always start with Level 1
+- No empty rows in tables, no blank lines inside list blocks
+- End EVERY response with exactly: [META step=N suggestions=option1|option2|option3]
+  N = 1 (goal) / 2 (role) / 3 (time) / 4 (recommendation)
+
+## AMD Course Catalog (2025.2)
+
+### FPGA Track
+Level 1 Required:
+- Designing FPGAs Using the Vivado Design Suite 1 (F1) | 16h | Both | ZCU104 suggested
+  Spec: https://docs.amd.com/v/u/en-US/fpga-vdes1  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Designing+FPGAs+Using+the+Vivado+Design+Suite+1
+- Designing with the UltraScale and UltraScale+ Architecture | 16h | Both | Not required
+  Spec: https://docs.amd.com/v/u/en-US/fpga-us  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Designing+with+the+UltraScale
+Level 2 Required:
+- Designing FPGAs Using the Vivado Design Suite 2 (F2) | 16h | Both | ZCU104 suggested
+  Spec: https://docs.amd.com/v/u/en-US/fpga-vdes2  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Designing+FPGAs+Using+the+Vivado+Design+Suite+2
+- Design Closure Techniques | 16h | Both | Not required
+  Spec: https://docs.amd.com/v/u/en-US/fpga-dsgnclosure
+Level 4:
+- Designing with Dynamic Function eXchange (DFX) | 16h | Both | ZCU104 required, VCK190 suggested
+  Spec: https://docs.amd.com/v/u/en-US/fpga-dfx  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=DFX
+
+### Versal Adaptive SoC Track
+Level 1 Required:
+- Designing with the Versal Adaptive SoC: Quick Start | 8h | Both | Not required
+  Spec: https://docs.amd.com/v/u/en-US/ver-qstart  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Versal+Quick+Start
+- Designing with the Versal Adaptive SoC: Architecture | 16h | Both | VCK190 suggested
+  Spec: https://docs.amd.com/v/u/en-US/ver-arch  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Versal+Architecture
+- Designing with the Versal Adaptive SoC: Design Methodology | 16h | Both | VCK190 suggested
+  Spec: https://docs.amd.com/v/u/en-US/ver-dm  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Versal+Design+Methodology
+Level 2 Required:
+- Designing with the Versal Adaptive SoC: NoC | 8h | Both | Not required
+  Spec: https://docs.amd.com/v/u/en-US/ver-noc  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Versal+NoC
+- Designing with the Versal Adaptive SoC: Hardware Debug | 8h | Both | VCK190 suggested
+  Spec: https://docs.amd.com/v/u/en-US/ver-debug
+
+### Versal AI Engine Track
+Level 1 Required:
+- Designing with Versal AI Engine: Quick Start | 8h | Both | Not required
+  Spec: https://docs.amd.com/v/u/en-US/aie-qstart
+- Designing with Versal AI Engine: Architecture and Design Flow - 1 | 16h | Both | Not required
+  Spec: https://docs.amd.com/v/u/en-US/aie-arch  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=AI+Engine+Architecture
+Level 2 Required:
+- Designing with Versal AI Engine: Graph Programming with AI Engine Kernels - 2 | 16h | Both | Not required
+  Spec: https://docs.amd.com/v/u/en-US/aie-graph
+
+### Embedded / Adaptive SoC Track
+Level 1 Required:
+- Embedded Systems Design | 16h | Both | ZCU104 suggested
+  Spec: https://docs.amd.com/v/u/en-US/embd-hw  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Embedded+Systems+Design
+- Embedded Systems Software Design | 24h | Both | ZCU104 suggested
+  Spec: https://docs.amd.com/v/u/en-US/embd-sw  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Embedded+Systems+Software+Design
+Level 2 Required:
+- Embedded Design with PetaLinux Tools | 16h | Both | ZCU104 suggested
+  Spec: https://docs.amd.com/v/u/en-US/embd-plnx  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=PetaLinux
+
+### Machine Learning / Vitis AI Track
+Level 1 Required:
+- Developing AI Inference Solutions with the Vitis AI Platform | 16h | Both | ZCU104 required
+  Spec: https://docs.amd.com/v/u/en-US/ai-infer  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=Vitis+AI
+Level 2 Optional:
+- Using Vision-based Applications with the Kria KV260 | 16h | Both | KV260 required
+  Spec: https://docs.amd.com/v/u/en-US/som-vision
+
+### HLS / Accelerator Track
+- High-Level Synthesis with the Vitis Unified IDE | 16h | Level 1 Optional | ZCU104 suggested
+  Spec: https://docs.amd.com/v/u/en-US/dsp-hls  Portal: https://learningcatalog-amd.netexam.com/Search?searchText=High-Level+Synthesis
+
+## F1 Modules (for short/medium time slots — FPGA Designer role)
+Module 1: Introduction to FPGAs — FPGA vs ASIC vs CPU, LUT/CLB/FF/BRAM/DSP/IOB (~20 min) | Course: Designing FPGAs Using the Vivado Design Suite 1
+Module 3: Introduction to Vivado Design Suite — project modes, IDE layout (~20 min) | Course: Designing FPGAs Using the Vivado Design Suite 1
+Module 5: Vivado Project-Based Mode — creating projects, adding sources (~30 min) | Course: Designing FPGAs Using the Vivado Design Suite 1
+Module 9: Behavioral Simulation — testbenches, Vivado simulator, waveforms (~30 min) | Course: Designing FPGAs Using the Vivado Design Suite 1
+Module 11: Synthesis and Implementation — flow, reports, bitstream generation (~35 min) | Course: Designing FPGAs Using the Vivado Design Suite 1
+Module 13: Introduction to Clock Constraints — create_clock, XDC constraints (~25 min) | Course: Designing FPGAs Using the Vivado Design Suite 1
+
+## F1 Labs
+Lab 01: Vivado Project-based Flow — create project, add RTL, simulate (~30 min, no board) | Course: Designing FPGAs Using the Vivado Design Suite 1
+Lab 02: Vivado IP Flow — add IP from catalog, customize, generate outputs (~30 min, no board) | Course: Designing FPGAs Using the Vivado Design Suite 1
+Lab 03: Synthesis and Implementation — synthesize, implement, bitstream (~45 min, ZCU104 suggested) | Course: Designing FPGAs Using the Vivado Design Suite 1`;
+
+// ── Demo catalog ─────────────────────────────────────────────────
+const ROLES = [
+  '1. FPGA Designer', '2. Embedded Software Engineer', '3. AI Engine Developer',
+  '4. ML / Data Science Engineer', '5. System Architect',
+  '6. HLS / Accelerator Developer', '7. x86 Embedded Engineer', '8. New to AMD / Student'
+];
+
+const DEMO = {
+  fpga: {
+    label: "FPGA Design (Vivado)",
+    short: {
+      html: `Here's what you can cover in <b>under 30 minutes</b>:<br><br>
+        <b>Module:</b> Introduction to FPGAs<br>
+        <b>Course:</b> Designing FPGAs Using the Vivado Design Suite 1 (F1)<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b>
+        <ul>
+          <li>FPGA vs. ASIC vs. CPU — when to use each</li>
+          <li>Basic architecture: LUTs, Flip-Flops, CLBs, BRAM, DSP, IOBs</li>
+          <li>UltraScale LUT internals &amp; distributed RAM</li>
+          <li>FPGA advantages: reprogrammability &amp; parallel processing</li>
+        </ul>`,
+      suggestions: ["Show me a lab too", "Recommend a full course", "Start over"]
+    },
+    medium: {
+      html: `Here's your 1-hour <b>module + lab</b> plan:<br><br>
+        <b>Module:</b> Introduction to FPGAs<br>
+        <b>Course:</b> Designing FPGAs Using the Vivado Design Suite 1 (F1)<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b> FPGA architecture basics — LUTs, CLBs, Flip-Flops, BRAM, DSP, IOB.<br><br>
+        <b>Lab:</b> Lab 01 — Vivado Project-based Flow<br>
+        <b>Course:</b> Designing FPGAs Using the Vivado Design Suite 1 (F1)<br>
+        <b>Duration:</b> ~30 minutes<br>
+        <b>What you'll do:</b> Create a Vivado project, add RTL sources, simulate a design using the Vivado simulator.<br><br>
+        <b>Hardware needed:</b> No board required (simulation only)`,
+      suggestions: ["Recommend a full course", "Start over"]
+    },
+    course: {
+      html: `Best matching course for <b>FPGA Design</b>:<br><br>
+        <b>Designing FPGAs Using the Vivado Design Suite 1 (F1)</b><br><hr>
+        <b>Level:</b> 1 &nbsp;|&nbsp; <b>Duration:</b> 16 hours (~2 days)<br>
+        <b>Delivery:</b> Classroom or On-demand<br>
+        <b>Board:</b> ZCU104 (suggested, not required)<br>
+        <b>Track:</b> Required for FPGA track<br><br>
+        🔗 <a href="https://docs.amd.com/v/u/en-US/fpga-vdes1" target="_blank">Spec Sheet (docs.amd.com)</a><br>
+        🎓 <a href="https://learningcatalog-amd.netexam.com/Search?searchText=Designing+FPGAs+Using+the+Vivado+Design+Suite+1" target="_blank">Enroll on Customer Portal</a><br><br>
+        After F1, the next step is <b>F2</b> (Level 2 — timing closure, constraints, CDC analysis).`,
+      suggestions: ["Show me a learning path", "Start over"]
+    },
+    path: {
+      html: `<b>RECOMMENDED LEARNING PATH: FPGA Designer</b><br><br>
+        <b>Phase 1 — Foundation</b><br>
+        1. Designing FPGAs Using the Vivado Design Suite 1 (F1) &nbsp;<i>(Level 1, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Core RTL design, simulation, synthesis, and implementation in Vivado.<br><br>
+        <b>Phase 2 — Core Skills</b><br>
+        2. Designing FPGAs Using the Vivado Design Suite 2 (F2) &nbsp;<i>(Level 2, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Timing constraints, design closure, CDC analysis.<br>
+        3. Design Closure Techniques &nbsp;<i>(Level 2, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Advanced timing closure and resource optimization strategies.<br><br>
+        <b>Phase 3 — Advanced</b><br>
+        4. Designing with Dynamic Function eXchange (DFX) &nbsp;<i>(Level 4, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Partial reconfiguration for advanced FPGA design.<br><br>
+        <b>Estimated total:</b> ~64h across 4 courses<br>
+        <b>Hardware needed:</b> ZCU104 (suggested for F1/F2/DFX)`,
+      suggestions: ["Start over"]
+    }
+  },
+  embedded: {
+    label: "Embedded / Zynq / MPSoC",
+    short: {
+      html: `Here's your <b>under-30-minute</b> Embedded module:<br><br>
+        <b>Module:</b> Zynq UltraScale+ MPSoC Architecture Overview<br>
+        <b>Course:</b> Embedded Systems Software Design<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b>
+        <ul>
+          <li>APU (Cortex-A53), RPU (Cortex-R5), PMU subsystems</li>
+          <li>PS/PL integration and AXI interconnect</li>
+          <li>Boot flow and platform management overview</li>
+        </ul>`,
+      suggestions: ["Show me a lab too", "Recommend a full course", "Start over"]
+    },
+    medium: {
+      html: `Your 1-hour <b>Embedded module + lab</b> plan:<br><br>
+        <b>Module:</b> Zynq UltraScale+ MPSoC Architecture<br>
+        <b>Course:</b> Embedded Systems Software Design<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b> APU, RPU, PMU, PS/PL integration, AXI interconnect.<br><br>
+        <b>Lab:</b> Lab 1 — Bare Metal Hello World on ZCU104<br>
+        <b>Course:</b> Embedded Systems Software Design<br>
+        <b>Duration:</b> ~40 minutes<br>
+        <b>What you'll do:</b> Create a Vitis platform, generate BSP, build and run a hello-world bare-metal app on the A53.<br><br>
+        <b>Hardware needed:</b> ZCU104 (suggested)`,
+      suggestions: ["Recommend a full course", "Start over"]
+    },
+    course: {
+      html: `Best matching course for <b>Embedded / Zynq</b>:<br><br>
+        <b>Embedded Systems Software Design</b><br><hr>
+        <b>Level:</b> 1 &nbsp;|&nbsp; <b>Duration:</b> 24 hours (~3 days)<br>
+        <b>Delivery:</b> Classroom or On-demand<br>
+        <b>Board:</b> ZCU104 (suggested)<br>
+        <b>Track:</b> Required for Embedded track<br><br>
+        🔗 <a href="https://docs.amd.com/v/u/en-US/embd-sw" target="_blank">Spec Sheet (docs.amd.com)</a><br>
+        🎓 <a href="https://learningcatalog-amd.netexam.com/Search?searchText=Embedded+Systems+Software+Design" target="_blank">Enroll on Customer Portal</a>`,
+      suggestions: ["Show me a learning path", "Start over"]
+    },
+    path: {
+      html: `<b>RECOMMENDED LEARNING PATH: Embedded Software Engineer</b><br><br>
+        <b>Phase 1 — Foundation</b><br>
+        1. Embedded Systems Design &nbsp;<i>(Level 1, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Hardware platform design, PS/PL integration, AXI IP in Vivado.<br>
+        2. Embedded Systems Software Design &nbsp;<i>(Level 1, 24h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Bare-metal, RTOS, and Linux application development on Zynq.<br><br>
+        <b>Phase 2 — Core Skills</b><br>
+        3. Embedded Design with PetaLinux Tools &nbsp;<i>(Level 2, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: EDF workflow, custom layers, device tree, rootfs customization.<br><br>
+        <b>Estimated total:</b> ~56h across 3 courses<br>
+        <b>Hardware needed:</b> ZCU104 (suggested)`,
+      suggestions: ["Start over"]
+    }
+  },
+  aie: {
+    label: "Versal AI Engine",
+    short: {
+      html: `Here's your <b>under-30-minute</b> AI Engine module:<br><br>
+        <b>Module:</b> AI Engine Array Architecture Overview<br>
+        <b>Course:</b> Designing with Versal AI Engine: Architecture and Design Flow - 1<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b>
+        <ul>
+          <li>AI Engine array structure and vector processors</li>
+          <li>Data memory, program memory, and local interconnect</li>
+          <li>Stream interconnect and cascade streams</li>
+          <li>When to use AI Engines vs. PL</li>
+        </ul>`,
+      suggestions: ["Show me a lab too", "Recommend a full course", "Start over"]
+    },
+    medium: {
+      html: `Your 1-hour <b>AI Engine module + lab</b> plan:<br><br>
+        <b>Module:</b> AI Engine Architecture and Graph Topology<br>
+        <b>Course:</b> Designing with Versal AI Engine: Architecture and Design Flow - 1<br>
+        <b>Duration:</b> ~25 minutes<br>
+        <b>What you'll learn:</b> Vector processors, data/program memory, stream interconnect, graph topology.<br><br>
+        <b>Lab:</b> Lab 1 — AI Engine Quick Start Simulation<br>
+        <b>Course:</b> Designing with Versal AI Engine: Quick Start<br>
+        <b>Duration:</b> ~35 minutes<br>
+        <b>What you'll do:</b> Compile a simple AI Engine kernel, inspect the graph, verify output in simulation.<br><br>
+        <b>Hardware needed:</b> Not required (simulation)`,
+      suggestions: ["Recommend a full course", "Start over"]
+    },
+    course: {
+      html: `Best matching course for <b>Versal AI Engine</b>:<br><br>
+        <b>Designing with Versal AI Engine: Architecture and Design Flow - 1</b><br><hr>
+        <b>Level:</b> 1 &nbsp;|&nbsp; <b>Duration:</b> 16 hours (~2 days)<br>
+        <b>Delivery:</b> Classroom or On-demand<br>
+        <b>Board:</b> Not required<br>
+        <b>Track:</b> Required for AI Engine track<br><br>
+        🔗 <a href="https://docs.amd.com/v/u/en-US/aie-arch" target="_blank">Spec Sheet (docs.amd.com)</a><br>
+        🎓 <a href="https://learningcatalog-amd.netexam.com/Search?searchText=AI+Engine+Architecture" target="_blank">Enroll on Customer Portal</a>`,
+      suggestions: ["Show me a learning path", "Start over"]
+    },
+    path: {
+      html: `<b>RECOMMENDED LEARNING PATH: AI Engine Developer</b><br><br>
+        <b>Phase 1 — Foundation</b><br>
+        1. Designing with Versal AI Engine: Quick Start &nbsp;<i>(Level 1, 8h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Fast introduction to AI Engine tools and simulation flow.<br>
+        2. Designing with Versal AI Engine: Architecture and Design Flow - 1 &nbsp;<i>(Level 1, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Deep dive into vector processors, data memory, graph topology.<br><br>
+        <b>Phase 2 — Core Skills</b><br>
+        3. Designing with Versal AI Engine: Graph Programming with AI Engine Kernels - 2 &nbsp;<i>(Level 2, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Graph topology, data movers, performance optimization, PS/PL/AIE integration.<br><br>
+        <b>Estimated total:</b> ~40h across 3 courses<br>
+        <b>Hardware needed:</b> Not required`,
+      suggestions: ["Start over"]
+    }
+  },
+  versal: {
+    label: "Versal Adaptive SoC",
+    short: {
+      html: `Here's your <b>under-30-minute</b> Versal module:<br><br>
+        <b>Module:</b> Versal Adaptive SoC Architecture Overview<br>
+        <b>Course:</b> Designing with the Versal Adaptive SoC: Architecture<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b>
+        <ul>
+          <li>What is a Versal Adaptive SoC (ACAP)</li>
+          <li>Scalar engines: APU (Cortex-A72), RPU (Cortex-R5F)</li>
+          <li>Adaptable engines: PL fabric and AI Engine array</li>
+          <li>NoC — high-bandwidth on-chip interconnect</li>
+        </ul>`,
+      suggestions: ["Show me a lab too", "Recommend a full course", "Start over"]
+    },
+    medium: {
+      html: `Your 1-hour <b>Versal module + lab</b> plan:<br><br>
+        <b>Module:</b> Versal Architecture Overview<br>
+        <b>Course:</b> Designing with the Versal Adaptive SoC: Architecture<br>
+        <b>Duration:</b> ~25 minutes<br>
+        <b>What you'll learn:</b> Scalar engines, PL fabric, AI Engine array, NoC, platform management.<br><br>
+        <b>Lab:</b> Lab 1 — Versal Base Platform Design<br>
+        <b>Course:</b> Designing with the Versal Adaptive SoC: Design Methodology<br>
+        <b>Duration:</b> ~35 minutes<br>
+        <b>What you'll do:</b> Create a Versal base platform in Vivado, configure the NoC, validate connectivity.<br><br>
+        <b>Hardware needed:</b> VCK190 (suggested) or simulation`,
+      suggestions: ["Recommend a full course", "Start over"]
+    },
+    course: {
+      html: `Best matching course for <b>Versal Adaptive SoC</b>:<br><br>
+        <b>Designing with the Versal Adaptive SoC: Architecture</b><br><hr>
+        <b>Level:</b> 1 &nbsp;|&nbsp; <b>Duration:</b> 16 hours (~2 days)<br>
+        <b>Delivery:</b> Classroom or On-demand<br>
+        <b>Board:</b> VCK190 (suggested)<br>
+        <b>Track:</b> Required for Versal track<br><br>
+        🔗 <a href="https://docs.amd.com/v/u/en-US/ver-arch" target="_blank">Spec Sheet (docs.amd.com)</a><br>
+        🎓 <a href="https://learningcatalog-amd.netexam.com/Search?searchText=Versal+Architecture" target="_blank">Enroll on Customer Portal</a>`,
+      suggestions: ["Show me a learning path", "Start over"]
+    },
+    path: {
+      html: `<b>RECOMMENDED LEARNING PATH: System Architect — Versal</b><br><br>
+        <b>Phase 1 — Foundation</b><br>
+        1. Designing with the Versal Adaptive SoC: Quick Start &nbsp;<i>(Level 1, 8h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Fast platform overview before deep-dive courses.<br>
+        2. Designing with the Versal Adaptive SoC: Architecture &nbsp;<i>(Level 1, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Scalar/adaptable engines, NoC, CIPS, DDR subsystems.<br><br>
+        <b>Phase 2 — Core Skills</b><br>
+        3. Designing with the Versal Adaptive SoC: Design Methodology &nbsp;<i>(Level 1, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Full Versal design flow, IP Integrator, platform-based design.<br>
+        4. Designing with the Versal Adaptive SoC: NoC &nbsp;<i>(Level 2, 8h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: NoC configuration, QoS, traffic analysis — critical for system architects.<br><br>
+        <b>Estimated total:</b> ~48h across 4 courses<br>
+        <b>Hardware needed:</b> VCK190 (suggested)`,
+      suggestions: ["Start over"]
+    }
+  },
+  ml: {
+    label: "Machine Learning / Vitis AI",
+    short: {
+      html: `Here's your <b>under-30-minute</b> ML module:<br><br>
+        <b>Module:</b> Vitis AI Platform Overview<br>
+        <b>Course:</b> Developing AI Inference Solutions with the Vitis AI Platform<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b>
+        <ul>
+          <li>Vitis AI platform overview and DPU architecture</li>
+          <li>Model quantization and compilation workflow</li>
+          <li>Deploying models on ZCU104 / Kria boards</li>
+        </ul>`,
+      suggestions: ["Show me a lab too", "Recommend a full course", "Start over"]
+    },
+    medium: {
+      html: `Your 1-hour <b>ML module + lab</b> plan:<br><br>
+        <b>Module:</b> Vitis AI Overview and DPU Architecture<br>
+        <b>Course:</b> Developing AI Inference Solutions with the Vitis AI Platform<br>
+        <b>Duration:</b> ~25 minutes<br>
+        <b>What you'll learn:</b> DPU architecture, quantization/compilation flow, deployment workflow.<br><br>
+        <b>Lab:</b> Lab 1 — ResNet-50 Inference on DPU<br>
+        <b>Course:</b> Developing AI Inference Solutions with the Vitis AI Platform<br>
+        <b>Duration:</b> ~35 minutes<br>
+        <b>What you'll do:</b> Run a pre-compiled ResNet-50 model on the DPU, measure throughput, inspect profiling results.<br><br>
+        <b>Hardware needed:</b> ZCU104 (required)`,
+      suggestions: ["Recommend a full course", "Start over"]
+    },
+    course: {
+      html: `Best matching course for <b>ML / Vitis AI</b>:<br><br>
+        <b>Developing AI Inference Solutions with the Vitis AI Platform</b><br><hr>
+        <b>Level:</b> 1 &nbsp;|&nbsp; <b>Duration:</b> 16 hours (~2 days)<br>
+        <b>Delivery:</b> Classroom or On-demand<br>
+        <b>Board:</b> ZCU104 (required)<br>
+        <b>Track:</b> Required for ML track<br><br>
+        🔗 <a href="https://docs.amd.com/v/u/en-US/ai-infer" target="_blank">Spec Sheet (docs.amd.com)</a><br>
+        🎓 <a href="https://learningcatalog-amd.netexam.com/Search?searchText=Vitis+AI" target="_blank">Enroll on Customer Portal</a>`,
+      suggestions: ["Start over"]
+    },
+    path: {
+      html: `<b>RECOMMENDED LEARNING PATH: ML / Data Science Engineer</b><br><br>
+        <b>Phase 1 — Foundation</b><br>
+        1. Developing AI Inference Solutions with the Vitis AI Platform &nbsp;<i>(Level 1, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Core DPU inference workflow on ZCU104 — required starting point.<br><br>
+        <b>Phase 2 — Application</b><br>
+        2. Using Vision-based Applications with the Kria KV260 &nbsp;<i>(Level 2, 16h, Both)</i><br>
+        &nbsp;&nbsp;&nbsp;Why: Deploy real-time computer vision pipelines on Kria SOM.<br><br>
+        <b>Estimated total:</b> ~32h across 2 courses<br>
+        <b>Hardware needed:</b> ZCU104 (Phase 1), KV260 (Phase 2)`,
+      suggestions: ["Start over"]
+    }
+  },
+  hls: {
+    label: "High-Level Synthesis (HLS)",
+    short: {
+      html: `Here's your <b>under-30-minute</b> HLS module:<br><br>
+        <b>Module:</b> Introduction to High-Level Synthesis<br>
+        <b>Course:</b> High-Level Synthesis with the Vitis Unified IDE<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b>
+        <ul>
+          <li>What is HLS and why use it over RTL</li>
+          <li>C/C++ to RTL compilation flow</li>
+          <li>Key directives: PIPELINE, UNROLL, DATAFLOW</li>
+          <li>Interface types: AXI-Stream, AXI4-Lite</li>
+        </ul>`,
+      suggestions: ["Show me a lab too", "Recommend a full course", "Start over"]
+    },
+    medium: {
+      html: `Your 1-hour <b>HLS module + lab</b> plan:<br><br>
+        <b>Module:</b> HLS Introduction and Directives<br>
+        <b>Course:</b> High-Level Synthesis with the Vitis Unified IDE<br>
+        <b>Duration:</b> ~20 minutes<br>
+        <b>What you'll learn:</b> C/C++ to RTL flow, directives, interface types, co-simulation.<br><br>
+        <b>Lab:</b> Lab 1 — FIR Filter in HLS<br>
+        <b>Course:</b> High-Level Synthesis with the Vitis Unified IDE<br>
+        <b>Duration:</b> ~35 minutes<br>
+        <b>What you'll do:</b> Write a simple FIR filter in C++, apply PIPELINE directive, synthesize and run RTL co-simulation.<br><br>
+        <b>Hardware needed:</b> Not required`,
+      suggestions: ["Recommend a full course", "Start over"]
+    },
+    course: {
+      html: `Best matching course for <b>HLS</b>:<br><br>
+        <b>High-Level Synthesis with the Vitis Unified IDE</b><br><hr>
+        <b>Level:</b> 1 Optional &nbsp;|&nbsp; <b>Duration:</b> 16 hours (~2 days)<br>
+        <b>Delivery:</b> Classroom or On-demand<br>
+        <b>Board:</b> ZCU104 (suggested)<br><br>
+        🔗 <a href="https://docs.amd.com/v/u/en-US/dsp-hls" target="_blank">Spec Sheet (docs.amd.com)</a><br>
+        🎓 <a href="https://learningcatalog-amd.netexam.com/Search?searchText=High-Level+Synthesis" target="_blank">Enroll on Customer Portal</a>`,
+      suggestions: ["Start over"]
+    },
+    path: { html: `For HLS, take <b>High-Level Synthesis with the Vitis Unified IDE</b> (Level 1, 16h), then pair it with <b>Designing FPGAs Using the Vivado Design Suite 2</b> for advanced timing and integration skills.`, suggestions: ["Start over"] }
+  }
+};
+
+// ── Detect key type ───────────────────────────────────────────────
+function isAnthropicKey(k) { return k.startsWith('sk-ant-') || k.startsWith('sk-'); }
+function isGatewayKey(k)   { return /^[a-f0-9]{32}$/i.test(k) || (!k.startsWith('sk-') && k.length > 10); }
+
+// ── State ─────────────────────────────────────────────────────────
+let apiKey = '', modelName = '', demoMode = false;
+let demoState = 'GREETING', demoTopic = null, demoRole = null;
+let convHistory = [], feedbackData = [], msgCounter = 0, isStreaming = false;
+
+// ── Setup ─────────────────────────────────────────────────────────
+function validateKey(val) {
+  const v = val.trim();
+  document.getElementById('start-ai-btn').disabled = v.length < 8;
+}
+function startDemoMode() { demoMode = true; openChat('Demo Mode','demo'); greetDemo(); }
+function startAIMode() {
+  const key = sanitizeKey(document.getElementById('api-key-input').value.trim());
+  if (!key) return;
+  apiKey = key;
+  modelName = 'claude-sonnet-4-6';
+  demoMode = false;
+  openChat('AI Mode — Claude Sonnet','ai'); greetAI();
+}
+function openChat(label, cls) {
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('chat-wrapper').classList.remove('hidden');
+  const p = document.getElementById('mode-pill');
+  p.textContent = label; p.className = `mode-pill ${cls}`; p.classList.remove('hidden');
+}
+
+// ── UI helpers ────────────────────────────────────────────────────
+function scrollDown() { const e=document.getElementById('chat-messages'); setTimeout(()=>e.scrollTop=e.scrollHeight,40); }
+function setSendEnabled(on) { document.getElementById('send-btn').disabled=!on; document.getElementById('chat-input').disabled=!on; }
+function showToast(msg,isErr=false) {
+  const t=document.createElement('div'); t.className='toast'+(isErr?' err':''); t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(),4000);
+}
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,90)+'px'; }
+function updatePills(step) {
+  for(let i=0;i<4;i++){
+    const p=document.getElementById('pill-'+i);
+    if(!p) continue;
+    if(i+1<step) p.className='topic-pill done';
+    else if(i+1===step) p.className='topic-pill active';
+    else p.className='topic-pill';
+  }
+}
+function setQuickReplies(opts) {
+  const el=document.getElementById('quick-replies'); el.innerHTML='';
+  opts.forEach(o=>{
+    const b=document.createElement('button'); b.className='qr-btn'; b.textContent=o;
+    b.onclick=()=>{ clearQR(); addUserMsg(o); demoMode?demoDispatch(o):aiSend(o); };
+    el.appendChild(b);
+  });
+}
+function clearQR() { document.getElementById('quick-replies').innerHTML=''; }
+function addUserMsg(text) {
+  const el=document.getElementById('chat-messages'), row=document.createElement('div');
+  row.className='msg-row user';
+  row.innerHTML=`<div class="msg-avatar">👤</div><div class="msg-content"><div class="msg-bubble">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`;
+  el.appendChild(row); scrollDown();
+}
+function addBotMsg(html, suggestions=[], step=null, showExport=false) {
+  const id='msg-'+(++msgCounter), el=document.getElementById('chat-messages'), row=document.createElement('div');
+  row.className='msg-row'; row.id=id;
+  row.innerHTML=`<div class="msg-avatar">🎓</div><div class="msg-content"><div class="msg-bubble">${html}</div></div>`;
+  el.appendChild(row);
+  const fbRow=document.createElement('div'); fbRow.className='feedback-row';
+  fbRow.innerHTML=`<span class="feedback-label">Helpful?</span>
+    <button class="fb-btn" id="${id}-up" onclick="recordFeedback('${id}',1)">👍</button>
+    <button class="fb-btn" id="${id}-down" onclick="recordFeedback('${id}',-1)">👎</button>`;
+  row.querySelector('.msg-content').appendChild(fbRow);
+  if(step) updatePills(step);
+  if(suggestions.length) setQuickReplies(suggestions);
+  if(showExport) document.getElementById('export-btn').classList.remove('hidden');
+  document.getElementById('fb-summary-btn').classList.remove('hidden');
+  scrollDown(); return id;
+}
+function demoTyping(ms=800) {
+  return new Promise(res=>{
+    const el=document.getElementById('chat-messages'), row=document.createElement('div');
+    row.className='typing-indicator'; row.id='typing-anim';
+    row.innerHTML=`<div class="msg-avatar">🎓</div><div class="typing-dots"><span></span><span></span><span></span></div>`;
+    el.appendChild(row); scrollDown(); setTimeout(()=>{row.remove();res();},ms);
+  });
+}
+function recordFeedback(id,rating) {
+  const up=document.getElementById(id+'-up'), down=document.getElementById(id+'-down');
+  if(!up||!down) return;
+  up.classList.remove('selected-up'); down.classList.remove('selected-down');
+  if(rating===1) up.classList.add('selected-up');
+  if(rating===-1) down.classList.add('selected-down');
+  const idx=feedbackData.findIndex(f=>f.id===id);
+  const entry={id,rating,ts:new Date().toISOString()};
+  if(idx>=0) feedbackData[idx]=entry; else feedbackData.push(entry);
+}
+function showFeedbackSummary() {
+  document.getElementById('fb-name').value='';
+  document.getElementById('fb-email').value='';
+  document.getElementById('fb-desc').value='';
+  document.getElementById('fb-word-count').textContent='0 / 250 words';
+  document.getElementById('fb-word-count').classList.remove('over');
+  document.getElementById('feedback-modal').classList.remove('hidden');
+}
+function closeFeedbackModal() {
+  document.getElementById('feedback-modal').classList.add('hidden');
+}
+function updateWordCount(el) {
+  const words = el.value.trim() ? el.value.trim().split(/\s+/).length : 0;
+  const wc = document.getElementById('fb-word-count');
+  wc.textContent = `${words} / 250 words`;
+  wc.classList.toggle('over', words > 250);
+  document.getElementById('fb-send-btn').disabled = words > 250;
+}
+function sendFeedback() {
+  const name  = document.getElementById('fb-name').value.trim();
+  const email = document.getElementById('fb-email').value.trim();
+  const desc  = document.getElementById('fb-desc').value.trim();
+  if (!name)  { showToast('Please enter your name.'); return; }
+  if (!email) { showToast('Please enter your email.'); return; }
+  if (!desc)  { showToast('Please enter your feedback.'); return; }
+  const words = desc.split(/\s+/).length;
+  if (words > 250) { showToast('Please keep feedback under 250 words.'); return; }
+  const pos = feedbackData.filter(f=>f.rating===1).length;
+  const neg = feedbackData.filter(f=>f.rating===-1).length;
+  const ratingLine = feedbackData.length
+    ? `Session ratings: ${pos} 👍  ${neg} 👎\n\n`
+    : '';
+  const subject = encodeURIComponent('AMD Training Advisor — Feedback');
+  const body = encodeURIComponent(
+    `From: ${name} <${email}>\nDate: ${new Date().toLocaleString()}\n\n${ratingLine}Feedback:\n${desc}`
+  );
+  window.location.href = `mailto:obhat@amd.com?subject=${subject}&body=${body}`;
+  closeFeedbackModal();
+  showToast('Opening your email client…');
+}
+function exportPlan() {
+  const bubbles=document.querySelectorAll('.msg-row:not(.user) .msg-bubble');
+  let sections='',i=1;
+  bubbles.forEach(b=>{const txt=b.innerText.trim();if(!txt)return;sections+=`<div class="print-section"><h2>Response ${i++}</h2><div class="print-content">${b.innerHTML}</div></div>`;});
+  document.getElementById('print-meta').textContent=`Generated: ${new Date().toLocaleString()} · Mode: ${demoMode?'Demo':'AI'} · AMD CustEd 2025.2`;
+  document.getElementById('print-content').innerHTML=sections;
+  document.getElementById('chat-wrapper').style.display='none';
+  document.getElementById('print-area').style.display='block';
+  window.print();
+  document.getElementById('print-area').style.display='none';
+  document.getElementById('chat-wrapper').style.display='';
+}
+
+// ── DEMO state machine ────────────────────────────────────────────
+async function greetDemo() {
+  await demoTyping(900);
+  addBotMsg(
+    `Hello! 👋 Welcome to the <b>AMD Training Advisor</b>.<br><br>
+     I'll help you find the right AMD learning content based on your goal, role, and available time — whether that's a quick 20-minute module, a hands-on lab, a full course, or a multi-week learning path.<br><br>
+     <b>What would you like to learn today?</b> Pick a topic below or type your own:`,
+    ['FPGA Design','Versal Adaptive SoC','Versal AI Engine','Embedded / Zynq / MPSoC / EDF','Machine Learning / Vitis AI','High-Level Synthesis'], 1);
+  demoState='TOPIC';
+}
+
+function detectTopic(t) {
+  t=t.toLowerCase();
+  if(/fpga|vivado|verilog|vhdl|ultrascale/.test(t)) return 'fpga';
+  if(/versal|acap|vck190/.test(t)&&!/ai.?engine|aie/.test(t)) return 'versal';
+  if(/ai.?engine|aie/.test(t)) return 'aie';
+  if(/zynq|mpsoc|rfsoc|embedded|petalinux|yocto/.test(t)) return 'embedded';
+  if(/vitis.?ai|machine.?learn|inference|kria|dpu/.test(t)) return 'ml';
+  if(/\bhls\b|high.?level|vitis.?hls/.test(t)) return 'hls';
+  return null;
+}
+
+function detectRole(t) {
+  t=t.toLowerCase();
+  if(/fpga|rtl|vivado|timing|ultrascale|dfx/.test(t)) return 'fpga';
+  if(/embedded|petalinux|yocto|boot|zynq|mpsoc|rfsoc/.test(t)) return 'embedded';
+  if(/ai.?engine|aie|kernel|graph|dsp/.test(t)) return 'aie';
+  if(/ml|machine.?learn|vitis.?ai|inference|kria|data.?scien/.test(t)) return 'ml';
+  if(/architect|noc|system.?plan|integration/.test(t)) return 'versal';
+  if(/hls|accelerator|alveo/.test(t)) return 'hls';
+  if(/x86|intel.?amd|migration/.test(t)) return 'x86';
+  if(/new|student|beginner|start/.test(t)||/^8/.test(t.trim())) return 'new';
+  // Numbered selections
+  const m=t.match(/^\s*(\d)\s*/);
+  if(m) { const map={'1':'fpga','2':'embedded','3':'aie','4':'ml','5':'versal','6':'hls','7':'x86','8':'new'}; return map[m[1]]||null; }
+  return null;
+}
+
+async function demoDispatch(text) {
+  if(text==='Start over'){resetChat();return;}
+
+  if(demoState==='TOPIC'){
+    const topic=detectTopic(text);
+    if(!topic){
+      await demoTyping(500);
+      addBotMsg('Please choose a topic:',['FPGA Design (Vivado)','Versal Adaptive SoC','Versal AI Engine','Embedded / Zynq / MPSoC','Machine Learning / Vitis AI','High-Level Synthesis (HLS)'],1);
+      return;
+    }
+    demoTopic=topic; demoState='ROLE';
+    await demoTyping(700);
+    addBotMsg(
+      `Great choice — <b>${DEMO[topic].label}</b>! 🚀<br><br>
+       To tailor my recommendation, <b>which role best describes you?</b><br><br>
+       <b>1.</b> FPGA Designer &nbsp;—&nbsp; RTL, Vivado, timing, UltraScale, DFX<br>
+       <b>2.</b> Embedded Software Engineer &nbsp;—&nbsp; Yocto, EDF, boot, Zynq/MPSoC/RFSoC<br>
+       <b>3.</b> AI Engine Developer &nbsp;—&nbsp; AIE/AIE-ML, graph/kernel programming, DSP<br>
+       <b>4.</b> ML / Data Science Engineer &nbsp;—&nbsp; Vitis AI, inference, Kria<br>
+       <b>5.</b> System Architect &nbsp;—&nbsp; Versal architecture, NoC, system planning<br>
+       <b>6.</b> HLS / Accelerator Developer &nbsp;—&nbsp; Vitis HLS, Alveo<br>
+       <b>7.</b> x86 Embedded Engineer &nbsp;—&nbsp; Intel-to-AMD migration<br>
+       <b>8.</b> New to AMD / Student &nbsp;—&nbsp; guided onboarding, Level 1<br><br>
+       Type a number or your role:`,
+      [], 2);
+    return;
+  }
+
+  if(demoState==='ROLE'){
+    const role=detectRole(text); demoRole=role||'fpga'; demoState='TIME';
+    await demoTyping(700);
+    addBotMsg(`Got it! <b>How much time can you spare for learning today?</b>`,
+      ['< 30 minutes','30 – 60 minutes','More than 1 hour'], 3);
+    return;
+  }
+
+  if(demoState==='TIME'){
+    const t=text.toLowerCase();
+    let bucket=null;
+    if(/more|long|full|day|>.*1|1\+/.test(t)) bucket='long';
+    else if(/30.*60|30.*1|medium|60/.test(t)) bucket='medium';
+    else if(/less|short|quick|<.*30|15|20/.test(t)) bucket='short';
+    else if(/30/.test(t)&&!/more|60/.test(t)) bucket='medium';
+    if(!bucket){
+      await demoTyping(500);
+      addBotMsg('Please pick a time option:',['⚡ Less than 30 minutes','⏱ 30 minutes – 1 hour','📚 More than 1 hour'],3);
+      return;
+    }
+    if(bucket==='long'){
+      demoState='LONG_TYPE';
+      await demoTyping(700);
+      addBotMsg(`I have three options for you:<br><br>
+        <b>1. Existing AMD Course</b> — structured course from the official catalog with links<br>
+        <b>2. Custom 1-Day Plan</b> — tailored 8-hour agenda with actual modules and labs<br>
+        <b>3. Recommended Learning Path</b> — phased sequence from beginner to advanced<br><br>
+        Which would you prefer?`,
+        ['📘 Existing AMD Course','🗓 Custom 1-Day Plan','🗺 Recommended Learning Path'], 4);
+      return;
+    }
+    demoState='FOLLOW_UP';
+    const rec=DEMO[demoTopic]?.[bucket];
+    await demoTyping(900);
+    addBotMsg(rec?rec.html:'Content coming soon.',rec?.suggestions||['Start over'],4,true);
+    return;
+  }
+
+  if(demoState==='LONG_TYPE'){
+    const t=text.toLowerCase();
+    demoState='FOLLOW_UP';
+    if(/path|learning.?path|sequence|phase/.test(t)||/^🗺/.test(text)){
+      await demoTyping(1000);
+      const rec=DEMO[demoTopic]?.path;
+      addBotMsg(rec?rec.html:'Learning path coming soon.',rec?.suggestions||['Start over'],4,true);
+    } else if(/custom|plan|1.?day/.test(t)||/^🗓/.test(text)){
+      await demoTyping(1000);
+      addBotMsg(buildCustomPlan(demoTopic),['Show me the full course instead','Start over'],4,true);
+    } else {
+      await demoTyping(1000);
+      addBotMsg(DEMO[demoTopic].course.html,DEMO[demoTopic].course.suggestions,4,true);
+    }
+    return;
+  }
+
+  if(demoState==='FOLLOW_UP'){
+    const t=text.toLowerCase();
+    if(/lab|30/.test(t)){demoState='TIME';demoDispatch('30 min');}
+    else if(/course|full/.test(t)){demoState='LONG_TYPE';demoDispatch('existing course');}
+    else if(/custom|plan/.test(t)){demoState='LONG_TYPE';demoDispatch('custom');}
+    else if(/path|learning.?path/.test(t)){demoState='LONG_TYPE';demoDispatch('learning path');}
+    else resetChat();
+    return;
+  }
+}
+
+function buildCustomPlan(topic) {
+  const d=DEMO[topic];
+  return `Here's a custom <b>8-hour training plan</b> for <b>${d.label}</b>: 🗓<br><br>
+    <pre>CUSTOM 1-DAY TRAINING PLAN: ${d.label}
+
+MORNING SESSION (4 hours)
+─────────────────────────────────────────────
+09:00 – 09:30  Architecture Overview
+               Foundation concepts & key components
+               (source: ${d.label} — Module 1)
+09:30 – 10:30  Core Building Blocks Deep Dive
+               Internal architecture & design patterns
+               (source: ${d.label} — Module 2)
+10:30 – 10:45  ☕ Break
+10:45 – 12:00  Lab: Getting Started Lab
+               Hands-on intro — covers simulation flow
+               (source: ${d.label} — Lab 1)
+12:00 – 13:00  🍽 Lunch
+
+AFTERNOON SESSION (4 hours)
+─────────────────────────────────────────────
+13:00 – 14:00  Design Flow Walkthrough
+               Tools, project setup, implementation steps
+14:00 – 15:30  Lab: Applied Design Exercise
+               Implement, analyze, and debug a design
+15:30 – 15:45  ☕ Break
+15:45 – 17:00  Verification & Next Steps
+               Constraints, timing, wrap-up
+
+HARDWARE: ${topic==='ml'?'ZCU104 (required)':topic==='embedded'?'ZCU104 (suggested)':'Not required for most labs'}
+TOOLS:    AMD Vivado / Vitis Design Suite 2025.2</pre>
+    Would you like to swap a topic, adjust pacing, or see the official course or learning path instead?`;
+}
+
+// ── AI Mode ───────────────────────────────────────────────────────
+function renderMd(text) {
+  let s=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s=s.replace(/```[\s\S]*?```/g,m=>`<pre><code>${m.slice(3,-3).replace(/^\w*\n/,'')}</code></pre>`);
+  s=s.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  s=s.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  s=s.replace(/\*(.+?)\*/g,'<i>$1</i>');
+  s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1 ↗</a>');
+  s=s.replace(/^---+$/gm,'<hr>');
+  s=s.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  s=s.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  s=s.replace(/^[-*] (.+)$/gm,'<li>$1</li>');
+  s=s.replace(/(<li>[\s\S]+?<\/li>)/g,'<ul>$1</ul>');
+  s=s.replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
+  return s;
+}
+function parseMeta(t) {
+  const m=t.match(/\[META\s+step=(\d+)\s+suggestions=([^\]]*)\]/);
+  if(!m) return{step:null,suggestions:[],display:t};
+  return{step:parseInt(m[1]),suggestions:m[2].split('|').map(s=>s.trim()).filter(Boolean),display:t.replace(m[0],'').trim()};
+}
+function createStreamBubble() {
+  const id='msg-'+(++msgCounter),el=document.getElementById('chat-messages'),row=document.createElement('div');
+  row.className='msg-row';row.id=id;
+  row.innerHTML=`<div class="msg-avatar">🎓</div><div class="msg-content"><div class="msg-bubble" id="${id}-bubble"><span class="cursor"></span></div></div>`;
+  el.appendChild(row);scrollDown();return id;
+}
+function updateStreamBubble(id,raw){
+  const{display}=parseMeta(raw),b=document.getElementById(id+'-bubble');
+  if(b){b.innerHTML=renderMd(display)+'<span class="cursor"></span>';scrollDown();}
+}
+function finalizeStreamBubble(id,raw){
+  const{display,step,suggestions}=parseMeta(raw),b=document.getElementById(id+'-bubble');
+  if(b) b.innerHTML=renderMd(display);
+  const row=document.getElementById(id);
+  if(row){
+    const fb=document.createElement('div');fb.className='feedback-row';
+    fb.innerHTML=`<span class="feedback-label">Helpful?</span>
+      <button class="fb-btn" id="${id}-up" onclick="recordFeedback('${id}',1)">👍</button>
+      <button class="fb-btn" id="${id}-down" onclick="recordFeedback('${id}',-1)">👎</button>`;
+    row.querySelector('.msg-content').appendChild(fb);
+  }
+  if(step) updatePills(step);
+  if(suggestions.length) setQuickReplies(suggestions);
+  if(step===4||display.includes('Spec:')||display.toLowerCase().includes('spec sheet'))
+    document.getElementById('export-btn').classList.remove('hidden');
+  document.getElementById('fb-summary-btn').classList.remove('hidden');
+  scrollDown();
+}
+async function callClaude(messages,maxTok=1200) {
+  // Strip any non-ISO-8859-1 characters that would break HTTP headers
+  const safeKey = apiKey.replace(/[^\x20-\xFF]/g, '').trim();
+  if (isAnthropicKey(safeKey)) {
+    // Direct Anthropic API
+    return fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': safeKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: modelName,
+        max_tokens: maxTok,
+        system: SYSTEM_PROMPT,
+        messages,
+        stream: true
+      })
+    });
+  } else {
+    // AMD LLM Gateway — merge system prompt into first user message
+    const gatewayMessages = [
+      { role: 'user', content: SYSTEM_PROMPT + '\n\n---\n\n' + (messages[0]?.content || '') },
+      ...messages.slice(1)
+    ];
+    const gwHeaders = new Headers();
+    gwHeaders.append('Ocp-Apim-Subscription-Key', safeKey);
+    gwHeaders.append('Content-Type', 'application/json');
+    return fetch('https://llm-api.amd.com/api/chat', {
+      method: 'POST',
+      headers: gwHeaders,
+      body: JSON.stringify({
+        model: modelName,
+        messages: gatewayMessages
+      })
+    });
+  }
+}
+
+// Sanitize key on input too so user sees clean value
+function sanitizeKey(val) {
+  return val.replace(/[^\x20-\xFF]/g, '');
+}
+async function streamInto(resp,id) {
+  if (!isAnthropicKey(apiKey)) {
+    // AMD Gateway — plain JSON response
+    const data = await resp.json();
+    // Gateway returns OpenAI-compatible format
+    const full = data?.response?.text
+      || data?.choices?.[0]?.message?.content
+      || data?.message?.content
+      || data?.content
+      || '';
+    updateStreamBubble(id, full);
+    return full;
+  }
+  // Anthropic streaming SSE
+  const reader=resp.body.getReader(),decoder=new TextDecoder();
+  let buf='',full='';
+  while(true){
+    const{done,value}=await reader.read();if(done)break;
+    buf+=decoder.decode(value,{stream:true});
+    const lines=buf.split('\n');buf=lines.pop()||'';
+    for(const line of lines){
+      if(!line.startsWith('data: '))continue;
+      const data=line.slice(6).trim();if(data==='[DONE]')continue;
+      try{const ev=JSON.parse(data);if(ev.type==='content_block_delta'&&ev.delta?.type==='text_delta'){full+=ev.delta.text;updateStreamBubble(id,full);}}catch{}
+    }
+  }
+  return full;
+}
+async function greetAI() {
+  const id=createStreamBubble();
+  try{
+    const resp=await callClaude([{role:'user',content:'Please start the session.'}],600);
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${resp.status}`);}
+    const full=await streamInto(resp,id);
+    convHistory.push({role:'assistant',content:full});finalizeStreamBubble(id,full);
+  }catch(err){
+    const b=document.getElementById(id+'-bubble');if(b)b.innerHTML=`⚠️ <b>Error:</b> ${err.message}`;
+    showToast(err.message,true);
+  }
+}
+async function aiSend(userText) {
+  if(isStreaming)return;isStreaming=true;setSendEnabled(false);
+  convHistory.push({role:'user',content:userText});
+  const id=createStreamBubble();
+  try{
+    const resp=await callClaude(convHistory);
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${resp.status}`);}
+    const full=await streamInto(resp,id);
+    convHistory.push({role:'assistant',content:full});finalizeStreamBubble(id,full);
+  }catch(err){
+    const b=document.getElementById(id+'-bubble');if(b)b.innerHTML=`⚠️ <b>Error:</b> ${err.message}`;
+    showToast(err.message,true);clearQR();
+  }finally{isStreaming=false;setSendEnabled(true);}
+}
+
+// ── Input handlers ────────────────────────────────────────────────
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend();}}
+function handleSend(){
+  if(isStreaming)return;
+  const input=document.getElementById('chat-input'),text=input.value.trim();
+  if(!text)return;input.value='';input.style.height='auto';
+  clearQR();addUserMsg(text);demoMode?demoDispatch(text):aiSend(text);
+}
+function resetChat(){
+  convHistory=[];feedbackData=[];msgCounter=0;isStreaming=false;
+  demoState='GREETING';demoTopic=null;demoRole=null;
+  document.getElementById('chat-messages').innerHTML='';clearQR();
+  document.getElementById('export-btn').classList.add('hidden');
+  document.getElementById('fb-summary-btn').classList.add('hidden');
+  updatePills(1);demoMode?greetDemo():greetAI();
+}
+</script>
+</body>
+</html>
