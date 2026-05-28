@@ -1,5 +1,5 @@
 ---
-name: ce-participant-workbook-creator
+name: custtr-participant-workbook-creator
 description: >
   Assembles a CE (Customer Education) participant workbook from a folder of ILT PowerPoint modules.
   Use this skill whenever the user wants to combine ILT PPT files into a participant workbook,

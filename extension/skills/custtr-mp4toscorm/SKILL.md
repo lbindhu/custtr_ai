@@ -1,3 +1,11 @@
+---
+name: custtr-mp4toscorm
+description: >
+  Converts an MP4 video into a SCORM 1.2 package for upload to any LMS (Cornerstone, Moodle, Blackboard, etc.).
+  No authoring tool required. Use when the user wants to convert a video to SCORM, create a SCORM package,
+  or upload a video to an LMS as a course.
+---
+
 # MP4 to SCORM Conversion Skill
 
 <!-- psas-attribution:v2 -->

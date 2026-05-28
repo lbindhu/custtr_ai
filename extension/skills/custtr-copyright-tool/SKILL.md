@@ -1,5 +1,5 @@
 ---
-name: copyright-tool
+name: custtr-copyright-tool
 description: "Add or update AMD copyright and disclaimer headers in source files. Handles multiple file types with correct comment syntax. Use when the user says: 'add copyright', 'update copyright', 'add disclaimer', 'update disclaimer', 'copyright header', 'add AMD copyright', or asks to process a folder of files for copyright compliance."
 ---
 

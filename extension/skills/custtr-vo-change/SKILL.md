@@ -1,5 +1,5 @@
 ---
-name: sl_voice_change
+name: custtr-vo-change
 description: >
   Converts audio narration inside Articulate Storyline (.story) files to a different
   ElevenLabs voice using Speech-to-Speech (STS) conversion, then replaces the audio
