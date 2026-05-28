@@ -1,15 +1,6 @@
 ---
 name: custtr-pptx-merger
-description: >
-  USE THIS SKILL — NOT psas-claude-pptx — whenever slides are being moved or copied between
-  .pptx files. This skill handles: merging decks, copying slides from one presentation to
-  another, extracting a subset of slides, or assembling a new deck from pieces of existing ones.
-  TRIGGER on any of these patterns (even without the word "merge"):
-  "copy slides from X to Y", "copy the first N slides from", "take slides 1-3 from X and put
-  them in Y", "merge slides", "combine decks", "extract slides", "pull slides from",
-  "put together a presentation from multiple files", or any request that involves moving or
-  copying content between two .pptx files.
-  Works with local files only.
+description: "Merges or copies slides between PowerPoint files cleanly."
 ---
 
 # PPTX Slide Merger

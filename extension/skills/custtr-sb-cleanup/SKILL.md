@@ -1,21 +1,6 @@
 ---
 name: custtr-sb-cleanup
-description: >
-  Cleans up AMD PowerPoint Storyboard (SB) files in-place by applying a set of
-  authoring-hygiene rules: removing comments, updating slide numbers, stripping
-  strikethrough text, fixing highlight colors, removing outside-slide elements,
-  deleting fully-struck or comment-marked slides, clearing double spaces, and
-  removing out-of-bounds blue/yellow authoring boxes. The output file is saved
-  with the version token (_V<n>) stripped from the filename. ALWAYS invoke this
-  skill automatically — without waiting for the user to ask — whenever the user
-  mentions "clean up the SB", "clean the storyboard", "SB cleanup", "clean up
-  SB", "apply cleanup rules to the SB", "apply cleanup to the SB", "clean the
-  SB file", provides a file path containing "_SB" and asks for cleanup (not ILT
-  conversion), or asks to remove strikethrough/comments/highlights/outside boxes
-  from a training PowerPoint SB. Do NOT invoke for SB→ILT conversion requests —
-  that is handled by the psas-sb-to-ilt skill. Do not ask for confirmation before
-  invoking — just run the cleanup. When in doubt, trigger — the user can always
-  redirect.
+description: "Strips comments, strikethrough, and authoring markup from SB decks."
 ---
 
 # SB Cleanup
