@@ -107,62 +107,33 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private _skillIcon(name: string): string {
-    if (name.includes('pptx') || name.includes('storyboard') || name.includes('sb-'))
-      return `<path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zM3 1h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2zm2 4h6v1H5V5zm0 3h6v1H5V8zm0 3h4v1H5v-1z"/>`;
-    if (name.includes('mp4') || name.includes('scorm') || name.includes('vo-'))
-      return `<path d="M6 3l7 5-7 5V3z"/>`;
-    if (name.includes('training') || name.includes('advisor'))
-      return `<path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm0 1a6 6 0 1 0 0 12A6 6 0 0 0 8 2zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-1 3h2v5H7V7z"/>`;
-    if (name.includes('copyright'))
-      return `<path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm0 1a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM6.5 5.5C7 5 7.5 4.8 8 4.8c1.2 0 2.2 1 2.2 2.2 0 .8-.4 1.5-1 1.9v.1c.8.4 1.3 1.2 1.3 2.1 0 1.4-1.1 2.4-2.5 2.4-.7 0-1.3-.2-1.8-.7l.7-.7c.3.3.7.5 1.1.5.8 0 1.4-.6 1.4-1.5 0-.9-.6-1.4-1.5-1.4H7.5V9h.3c.7 0 1.2-.5 1.2-1.2 0-.6-.5-1.1-1.1-1.1-.4 0-.7.1-1 .4l-.4-.6z"/>`;
-    if (name.includes('workbook') || name.includes('participant'))
-      return `<path d="M3 1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm0 1v12h10V2H3zm2 2h6v1H5V4zm0 2h6v1H5V6zm0 2h4v1H5V8z"/>`;
-    return `<path d="M2 4h12v1H2V4zm0 3h12v1H2V7zm0 3h8v1H2v-1z"/>`;
-  }
-
-  private _skillLabel(name: string): string {
-    if (name.includes('pptx') || name.includes('storyboard')) return 'Slides';
-    if (name.includes('mp4') || name.includes('scorm'))        return 'Video';
-    if (name.includes('vo-'))                                  return 'Audio';
-    if (name.includes('training') || name.includes('advisor')) return 'Learning';
-    if (name.includes('copyright'))                            return 'Compliance';
-    if (name.includes('workbook') || name.includes('participant')) return 'Docs';
-    if (name.includes('sb-'))                                  return 'Slides';
-    return 'Skill';
+  private _bookIcon(): string {
+    return `<path d="M3 2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H3zm0 1h8v10H3V3zm1 1v1h6V4H4zm0 2v1h6V6H4zm0 2v1h4V8H4z"/>`;
   }
 
   private _skillRow(s: Skill, showContribute: boolean): string {
     const pathJson = esc(JSON.stringify(s.mdPath));
     const nameJson = esc(JSON.stringify(s.name));
-    const trigger = s.description
-      ? s.description.split('.')[0].trim()
-      : s.displayName;
-    const triggerJson = esc(JSON.stringify(trigger));
-    const shortName = esc(s.displayName.replace(/^custtr-/, '').replace(/-/g, ' '));
-    const desc = s.description ? esc(s.description.slice(0, 90)) + (s.description.length > 90 ? '…' : '') : '';
-    const label = this._skillLabel(s.name);
-    const icon = this._skillIcon(s.name);
+    const chatCmd = `/@${s.name}`;
+    const chatCmdJson = esc(JSON.stringify(chatCmd));
 
     return `
       <div class="skill-card" onclick="send('openSkill',{path:${pathJson}})">
         <div class="skill-card-left">
-          <div class="skill-avatar">
-            <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16">${icon}</svg>
+          <div class="skill-avatar" title="Open README" onclick="event.stopPropagation();send('openSkill',{path:${pathJson}})">
+            <svg viewBox="0 0 14 14" fill="currentColor" width="14" height="14">${this._bookIcon()}</svg>
           </div>
         </div>
         <div class="skill-card-body">
           <div class="skill-card-header">
-            <span class="skill-card-name">${shortName}</span>
-            <span class="skill-tag">${label}</span>
+            <span class="skill-card-name">${esc(s.displayName)}</span>
             ${s.version ? `<span class="skill-ver">v${esc(s.version)}</span>` : ''}
           </div>
-          ${desc ? `<div class="skill-card-desc">${desc}</div>` : ''}
         </div>
         <div class="skill-card-actions">
-          <button class="run-btn" title="Run in Claude chat"
-            onclick="event.stopPropagation();send('runSkill',{trigger:${triggerJson}})">
-            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M4 3l9 5-9 5V3z"/></svg>
+          <button class="run-btn" title="Copy get-started command"
+            onclick="event.stopPropagation();send('runSkill',{trigger:${chatCmdJson}})">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="11" height="11"><path d="M4 3l9 5-9 5V3z"/></svg>
           </button>
           ${showContribute
             ? `<button class="pr-btn" title="Contribute via PR"
@@ -364,10 +335,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     color: var(--vscode-textLink-foreground);
     transition: background 0.12s;
   }
-  .skill-card:hover .skill-avatar {
-    background: var(--vscode-textLink-foreground);
-    color: #fff;
-  }
+  .skill-card:hover .skill-avatar { opacity: 0.85; }
 
   .skill-card-body { flex: 1; min-width: 0; }
   .skill-card-header {
@@ -400,21 +368,20 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   /* ── Card action buttons ── */
   .skill-card-actions {
     display: flex; flex-direction: column; gap: 3px;
-    margin-left: 6px; opacity: 0;
-    transition: opacity 0.12s;
+    margin-left: 6px;
     flex-shrink: 0;
   }
-  .skill-card:hover .skill-card-actions { opacity: 1; }
 
   .run-btn {
     display: flex; align-items: center; justify-content: center;
     width: 22px; height: 22px; border-radius: 4px;
-    background: var(--vscode-textLink-foreground);
-    color: #fff; border: none; cursor: pointer;
-    transition: background 0.12s, transform 0.1s;
+    background: none;
+    color: var(--vscode-foreground); border: none; cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.12s, transform 0.1s;
     flex-shrink: 0;
   }
-  .run-btn:hover { filter: brightness(1.15); transform: scale(1.08); }
+  .run-btn:hover { opacity: 1; transform: scale(1.1); }
 
   .pr-btn {
     display: flex; align-items: center; justify-content: center;
