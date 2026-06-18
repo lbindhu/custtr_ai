@@ -1,6 +1,6 @@
 ---
-name: "customer-training-storyboard"
-description: "Creates a new SB taking script (PPT) as base by applying ID principles such as content analysis, chunking, VO rewriting, AYK creation, and designing static and interactive slides, resulting in a partially designed SB."
+name: "custtr-storyboard"
+description: "Creates a new SB taking script (PPT) as base by applying ID principles."
 ---
 
 # Customer Training Storyboard — 4-Phase Engine
@@ -11,10 +11,169 @@ Your job is **not to summarize** the source PowerPoint. Your job is to **transfo
 
 ---
 
+## PHASE 0 — CLASSIFICATION GATE (runs before everything else)
+
+**This phase is mandatory and non-skippable for Mode A (file attached). It runs before any content is read, analyzed, or stored.**
+
+### Security Notice (display to user on every invocation)
+
+> ⚠️ **Important — Before uploading any file:**
+> This skill is authorized to process **AMD Public** content only.
+> Do **not** upload files classified as Internal, Confidential, NDA, or Restricted.
+> Uploading non-public AMD content to an AI system may violate AMD data handling policies.
+> If you are unsure of your file's classification, check with your content owner before proceeding.
+
+Display this notice once, before doing anything else.
+
+---
+
+### Step 0.1 — Detect file classification
+
+**Do NOT use `pptx_read` — it loads all slide content into context before any check runs.**
+
+Instead, run the following targeted Python script via Bash. It opens the PPTX as a ZIP, scans only classification metadata and shape text for classification markers, and returns only the label found — no slide content is read into context.
+
+```bash
+"/c/Users/mvlbnimi/AppData/Local/Programs/Python/Python312/python.exe" - <<'EOF'
+import zipfile, re, sys
+from pptx import Presentation
+
+path = sys.argv[1]  # Windows-style absolute path (e.g. C:\Users\...)
+
+# For MIP header field — match any Public variant including bare "Public"
+MIP_PUBLIC    = re.compile(r'^\[?Public\]?(\s+V\d+)?$', re.IGNORECASE)  # slide shapes
+MIP_NONPUBLIC = re.compile(r'Confidential|Internal|Restricted|NDA', re.IGNORECASE)            # MIP header exact match
+
+# For slide shape text — stricter to avoid false positives
+SHAPE_PUBLIC    = re.compile(r'\[Public\]|AMD Public|Public\s+V\d+', re.IGNORECASE)
+SHAPE_NONPUBLIC = re.compile(r'\[AMD\s*Confidential\]|\[Confidential\]|AMD Confidential|'
+                              r'\[AMD Internal\]|\[Internal\]|Internal Only|AMD Internal Use Only|'
+                              r'\bNDA\b|Non-Disclosure Agreement|Under NDA|Distribution Under NDA|'
+                              r'\[Restricted\]|Restricted Use', re.IGNORECASE)
+
+# PASS 1: MIP sensitivity label in docProps/custom.xml
+try:
+    with zipfile.ZipFile(path, 'r') as z:
+        if 'docProps/custom.xml' in z.namelist():
+            xml = z.read('docProps/custom.xml').decode('utf-8', errors='ignore')
+            m = re.search(r'ClassificationContentMarkingHeaderText[^>]*>.*?<vt:lpwstr>(.*?)</vt:lpwstr>', xml, re.DOTALL)
+            if m:
+                label_value = m.group(1).strip()
+                if MIP_NONPUBLIC.search(label_value):
+                    print(f"CLASSIFICATION: NON-PUBLIC | SOURCE: MIP | LABEL: {label_value}"); sys.exit(0)
+                if MIP_PUBLIC.match(label_value):
+                    print(f"CLASSIFICATION: PUBLIC | SOURCE: MIP | LABEL: {label_value}"); sys.exit(0)
+            for m in re.finditer(r'MSIP_Label_[^"]+_Name[^>]*>.*?<vt:lpwstr>(.*?)</vt:lpwstr>', xml, re.DOTALL):
+                label_name = m.group(1).strip()
+                if MIP_NONPUBLIC.search(label_name):
+                    print(f"CLASSIFICATION: NON-PUBLIC | SOURCE: MIP-Name | LABEL: {label_name}"); sys.exit(0)
+                if MIP_PUBLIC.match(label_name):
+                    print(f"CLASSIFICATION: PUBLIC | SOURCE: MIP-Name | LABEL: {label_name}"); sys.exit(0)
+except Exception:
+    pass
+
+# PASS 2: Shape text scan
+try:
+    prs = Presentation(path)
+    public_found = None
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            try:
+                text = shape.text_frame.text if shape.has_text_frame else ""
+            except Exception:
+                text = ""
+            if not text.strip(): continue
+            if SHAPE_NONPUBLIC.search(text):
+                print(f"CLASSIFICATION: NON-PUBLIC | SOURCE: slide-shape | LABEL: {SHAPE_NONPUBLIC.search(text).group(0)}"); sys.exit(0)
+            if SHAPE_PUBLIC.search(text) and not public_found:
+                public_found = SHAPE_PUBLIC.search(text).group(0)
+    if public_found:
+        print(f"CLASSIFICATION: PUBLIC | SOURCE: slide-shape | LABEL: {public_found}"); sys.exit(0)
+except Exception as e:
+    print(f"SLIDE ERROR: {e}")
+
+print("CLASSIFICATION: NONE")
+EOF
+" "$DECK_PATH"
+```
+
+Run this script with the uploaded file path as `$DECK_PATH`. Read only the single-line output.
+
+**Scan order:** MIP metadata first (most reliable), then slide shape text as fallback.
+
+---
+
+### Step 0.2 — Act on classification result
+
+**CASE 1 — `[Public]` marker found:**
+
+> ✅ Classification confirmed: **[Public]**. Proceeding with storyboard processing.
+
+Then continue to Mode detection and Phase 1.
+
+---
+
+**CASE 2 — Non-public marker found (`Internal`, `Confidential`, `NDA`, `Restricted`):**
+
+Stop immediately. Do not read, store, analyze, or summarize any slide content. Display:
+
+> 🚫 **Skill halted — Non-public content detected.**
+>
+> This file is classified as **[detected label]**. The storyboard skill is authorized for AMD Public content only.
+>
+> **Do not upload Internal, Confidential, NDA, or Restricted files to this skill.**
+>
+> If the file has been approved for public use and the label is outdated, update the classification in the source file first, then re-upload.
+
+Do not proceed under any circumstances. Do not ask the user to confirm or override.
+
+---
+
+**CASE 3 — No classification marker found:**
+
+Do not read further slide content. First display this warning:
+
+> ⚠️ **No classification label found.**
+>
+> This file does not contain a `[Public]` classification marker. The storyboard skill can only process files explicitly labeled as AMD Public.
+>
+> ⚠️ If this file contains any non-public AMD content, **do not proceed**.
+
+Then use `AskUserQuestion` with a single-select prompt:
+
+```
+Question: "Is this file approved for AMD Public use and free of any Internal, Confidential, NDA, or Restricted content?"
+
+Options:
+  A — "Yes, this file is Public — go ahead"
+       (description: "I confirm this file contains no confidential or restricted AMD content")
+  B — "No, or I'm not sure — stop"
+       (description: "Halt the skill. I will verify the classification with my content owner first")
+```
+
+**If user selects A:**
+> ⚠️ Proceeding at user's confirmation. Please update the file's classification to `[Public]` before sharing or re-using this storyboard output.
+
+Then continue to Mode detection and Phase 1.
+
+**If user selects B:** Halt. Do not proceed.
+
+---
+
+### Phase 0 — Summary table
+
+| Result | Action |
+|---|---|
+| `[Public]` found | Confirm and proceed |
+| Non-public label found | Hard stop — no override |
+| No label found | Warn, single-select confirmation, then proceed only if confirmed |
+
+---
+
 ## Modes
 
-- **Mode A — Enrich/Transform**: A raw `.pptx` is attached. Treat its slides as source content; restructure, rewrite, split, merge, and re-sequence to meet the standards below.
-- **Mode B — Design from scratch**: No PPTX attached. Run grouped free-text intake (below), then build.
+- **Mode A — Enrich/Transform**: A raw `.pptx` (or other supported file) is attached. Treat its slides as source content; restructure, rewrite, split, merge, and re-sequence to meet the standards below. Runs Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4.
+- **Mode B — Build from context**: No source file attached. User provides context in free text (LOs, topic outline, agenda, target audience, duration, script, or any combination). The skill sources content from internal and public AMD sources, builds a draft source PPTX, then hands off to Phase 1 onward — identical to Mode A from that point.
 
 Detect mode from attachments. If ambiguous, ask once. **Never use `AskUserQuestion`** — intake is always a single grouped free-text message.
 
@@ -26,6 +185,58 @@ Accept any of the following as raw source material:
 - Content the user describes or pastes directly into the conversation
 
 If the source has no explicit LOs, derive them before proceeding. State that they are derived and note the user should confirm before development begins.
+
+---
+
+## MODE B — BUILD FROM CONTEXT
+
+### When Mode B is active
+
+Mode B activates when no source file is attached. The user may provide any combination of: Learning Objectives, topic outline or agenda, target audience description, module duration, script or narration notes, reference bullet points or pasted content.
+
+### Mode B — Step 1: Intake
+
+Collect the following in one grouped free-text message:
+1. Course title & topic
+2. Target audience (role, prior knowledge, region/language)
+3. Terminal outcome (one sentence)
+4. Learning Objectives (3–6; derive if missing)
+5. Duration (default 20 min)
+6. LMS output (default SCORM 2004)
+7. Interactivity richness (Minimal / Standard / Rich — default Standard)
+8. Raw content (paste any outline, agenda, script, bullet notes)
+
+### Mode B — Step 2: Content Brief
+
+Build an internal content brief mapping what's covered vs what's missing relative to LOs. Present to user for confirmation before sourcing begins.
+
+### Mode B — Step 3: Source content for all topics
+
+For every topic, query all three sources in parallel:
+
+- **Source A — Confluence:** `confluence_search` MCP tool. Format: `[CONF] Page Title — https://...`
+- **Source B — Vivado Doc Search:** `vivado_doc_search` MCP tool. Format: `[VDOC] Document Title — https://...`
+- **Source C — WebSearch:** `WebSearch` tool. Format: `[WEB] Page Title — [URL]`
+
+For each topic, present a sourced content card with proposed content + clickable source links. Use `AskUserQuestion` single-select: Accept / Reject / Edit.
+
+### Mode B — Step 4: Build the source PPTX
+
+After all topics confirmed, build a draft source PPTX. Every slide notes pane includes:
+```
+[MODE B — AI-SOURCED CONTENT]
+SME review mandatory before publishing.
+Sources (click to verify):
+• [CONF] ... — https://...
+• [VDOC] ... — https://...
+• [WEB]  ... — https://...
+```
+
+Save as `[course_title]_Mode_B_Source.pptx`.
+
+### Mode B — Step 5: Hand off to Phase 1
+
+Run Phase 1 → Phase 2 → Phase 3 → Phase 4 exactly as Mode A. No phase is skipped.
 
 ---
 
@@ -48,53 +259,508 @@ Accept partial answers and infer the rest from defaults.
 
 ## PHASE 1 — ANALYZE (Diagnostic)
 
-Before any rewriting, produce a **Phase 1 Findings** report covering:
+Before any rewriting, produce a **Phase 1 Findings** report covering all checks below.
 
-1. **Source inventory** — slide count, titles, current sequence
-2. **LO coverage map** — which slides serve which LO; flag LOs with zero coverage and slides with no LO
-3. **Content classification per slide** — concept / definition / procedure / example / comparison / demo / assessment / admin
-4. **OST/VO state** — present, missing, mismatched, too long, full-sentence, contains periods
-5. **Brand violations** — non-Arial fonts, non-white backgrounds, RED usage, off-palette colors, non-Title-Only layouts
-6. **Interactivity audit** — current interaction types; flag passive walls of text that should become numbered/tab/static-card/KC
-7. **Gaps** — missing Intro, missing LO slide, missing KCs (must be one per LO), missing Summary, missing Disclaimer (must appear before Closing)
+### Output format — mandatory
 
-Output Phase 1 as a tight diagnostic — not prose.
+Every group outputs a findings table. Never use a plain list.
+
+| Slide # | Finding | Severity |
+|---|---|---|
+| 3 | Concept density: 4 new concepts on one slide | Critical |
+| 7 | No LO mapping — orphan slide | Warning |
+
+**Severity levels:**
+- `Critical` — must be fixed before the deck can proceed to Phase 2
+- `Warning` — should be fixed; will degrade instructional quality if left as-is
+- `Info` — advisory; acceptable to leave unchanged with justification
+
+If a group finds no issues, output: `✅ No findings.`
+
+Run all 16 individual checks in the backend. Surface results to the user under 7 groups only. Never expose individual check numbers to the user.
+
+---
+
+### Group 1 — Deck Overview
+*Runs: Check 1 (source inventory) + Check 3 (content classification) + Check 8 (orphan detection)*
+
+**Check 1 — Source inventory (background check):** Record slide count, titles, and current sequence internally. Output only the total slide count as a single line (e.g. "36 slides"). Do not output a numbered slide list.
+
+**Check 3 — Content classification (background check):** Classify each slide internally as one of: `concept` / `definition` / `procedure` / `example` / `comparison` / `demo` / `assessment` / `admin` / `unknown`. Use this to inform orphan detection. Do not output the full list.
+
+**Check 8 — Orphan detection:** Flag slides with no LO mapping AND no clear content type.
+- Orphan with no identifiable instructional purpose → `Warning` — candidate for deletion or merge
+- No LO mapping but clear content type (e.g. `admin`, `demo`) → `Info`
+
+---
+
+### Group 2 — Learning Design
+*Runs: Check 2 (LO coverage) + Check 9 (Bloom's) + Check 12 (constructive alignment) + Check 15 (sequencing)*
+
+**Check 2 — LO coverage map:** Which slides serve which LO.
+- LO with zero slide coverage → `Critical`
+
+**Check 9 — Bloom's Taxonomy:** Classify each LO verb: Remember / Understand / Apply / Analyze / Evaluate / Create.
+
+| LO # | Verb | Bloom's Level |
+|---|---|---|
+| LO-1 | "Identify..." | Remember |
+
+- >70% of LOs at Remember level → `Warning`
+- All LOs at Remember level → `Critical`
+
+**Remember-level verbs:** list, identify, recall, name, define, recognize, state, label, match.
+**Apply+ verbs:** apply, demonstrate, use, solve, compare, analyze, evaluate, design, create, build, assess, justify.
+
+**Check 12 — Constructive alignment:** For each LO verify LO promise → content teaches → KC tests are all in agreement.
+
+| LO # | LO verb / level | Content teaches | KC tests | Aligned? |
+|---|---|---|---|---|
+| LO-1 | Apply | Concept definition only | Recall question | ❌ Misaligned |
+
+- LO promises Apply/Analyze but KC tests Remember → `Critical`
+- LO promises a skill but no content slide models it → `Critical`
+- Summary omits an LO talking point → `Warning`
+- Partial mismatch → `Warning`
+
+**Check 15 — Instructional sequencing:** Content must flow simple → complex, known → unknown, concept → application.
+- Concept applied or tested before it is introduced → `Critical`
+- KC placed before its LO's content cluster → `Critical`
+- Advanced variant introduced before base concept → `Warning`
+- Content section order does not match LO sequence on Objectives slide → `Warning`
+- Summary not last content slide before Disclaimer/Closing → `Warning`
+
+---
+
+### Group 3 — Knowledge Checks
+*Runs: Check 10 (KC quality audit)*
+
+For every existing KC slide in the source:
+
+| KC Slide # | Issue | Severity |
+|---|---|---|
+| 12 | Options not parallel (mix of noun and verb forms) | Critical |
+| 12 | Distractor B is obviously wrong | Warning |
+| 12 | "All of the above" used as option | Critical |
+| 12 | 4-block VO missing from notes | Critical |
+| 12 | Fewer than 4 options | Critical |
+| 12 | Full stop at end of option | Warning |
+| 12 | Option lengths noticeably unequal — correct answer significantly longer/shorter | Warning |
+
+If no KCs exist: `ℹ️ No existing KCs found — new KCs will be created in Phase 3.`
+
+---
+
+### Group 4 — Content Quality
+*Runs: Check 11 (internal consistency) + Check 16 (redundancy)*
+
+**Check 11 — Internal consistency:**
+- Same concept named differently across slides → `Warning`
+- Same spec value appears with different numbers on different slides → `Critical`
+- Forward reference to content not yet introduced → `Warning`
+
+**Check 16 — Redundancy:**
+- Same bullet or sentence appears word-for-word on more than one slide → `Warning`
+- Same concept introduced twice as if new (not as deliberate reinforcement) → `Warning`
+
+---
+
+### Group 5 — Presentation Quality
+*Runs: Check 4 (OST/VO state) + Check 5 (brand violations)*
+
+**Check 4 — OST/VO state:**
+- Speaker notes missing → `Critical`
+- OST missing (slide has no body text at all, excluding purely visual/diagram slides) → `Critical`
+- VO >200 words per slide → `Warning`
+- OST contains full sentences (ends with period) → `Warning`
+
+*Note: Image-heavy or visually sparse slides are not flagged — the professional storyboard built in Phase 3 onwards will replace the visual treatment.*
+
+*Interactivity audit is assessed in Phase 2 once content is locked — not in Phase 1.*
+
+**Check 5 — Brand violations:**
+- Non-Arial font → `Critical`
+- Non-white background on content slides → `Critical`
+- RED (`#ED1C24`) used outside Objectives badge → `Critical`
+- Off-palette color → `Warning`
+- Non-Title-Only layout on content slides → `Warning`
+
+---
+
+### Group 6 — Structural Completeness
+*Runs: Check 7 (structural gaps)*
+
+Flag if absent:
+- Module Title slide (title slide) → `Critical`
+- Learning Objectives slide → `Critical`
+- One KC per LO immediately after its content cluster → `Critical`
+- Summary / Key Takeaways slide → `Critical`
+- Disclaimer slide before Closing → `Critical`
+
+---
+
+### Group 7 — Learner Experience
+*Runs: Check 13 (cognitive load only)*
+
+**Check 13 — Cognitive load / concept density:**
+
+A **concept** is a named idea, technology, feature, protocol, or term introduced for the first time on a slide. Do not flag reinforcement or summary — only first introductions. Do not flag bullet count or word count.
+
+- 4+ new concepts on one slide → `Critical`: "Split into separate slides, one concept each"
+- 3 new concepts with no visual chunking → `Warning`: "Add visual structure or split"
+- 1–2 new concepts → `✅ Acceptable`
+
+---
+
+Output all 7 groups in sequence. All groups run automatically — no pauses. Do not skip any group. End Phase 1 with a **Summary scorecard**:
+
+```
+Phase 1 Summary
+───────────────
+Critical findings    : N  (must resolve before Phase 2)
+Warning findings     : N  (should resolve)
+Info findings        : N  (advisory)
+─────────────────────────────────────────
+Deck Overview        : [e.g. 24 slides — 2 orphans]
+Learning Design      : [e.g. Bloom's: 3× Remember, 1× Apply | 1 alignment gap — LO-2]
+Knowledge Checks     : [e.g. 2 KCs found — 1 Critical violation]
+Content Quality      : [e.g. 1 terminology inconsistency | 1 redundancy flag]
+Presentation Quality : [e.g. 3 brand violations — slides 4, 7, 12]
+Structural Completeness : [e.g. Missing Summary slide]
+Learner Experience   : [e.g. 2 concept-density flags — slides 4, 9]
+```
+
+---
+
+## PHASE 1 — OUTPUT ARTIFACTS
+
+After the scorecard is presented and acknowledged, produce two output artifacts automatically. **Never modify the original input file — always work from a copy.**
+
+### Step 1 — Create a working copy
+
+```bash
+COPY_PATH="${DECK_DIR}/${DECK_STEM}_Phase1_Review.pptx"
+cp "$DECK" "$COPY_PATH"
+```
+
+### Step 2 — Add findings to working copy slide notes
+
+For every finding with a specific slide number, inject into that slide's notes pane under a `--- PHASE 1 REVIEW FINDINGS ---` header using python-pptx:
+
+```python
+from pptx import Presentation
+from pptx.oxml.ns import qn
+from lxml import etree
+
+SEVERITY_ICON = {"CRITICAL": "CRITICAL", "WARNING": "WARNING", "INFO": "INFO"}
+
+prs = Presentation(review_copy_path)
+for slide_num, findings in slide_findings.items():
+    slide = prs.slides[slide_num - 1]
+    txBody = slide.notes_slide.notes_text_frame._txBody
+    sep = etree.Element(qn('a:p'))
+    sep_run = etree.SubElement(sep, qn('a:r'))
+    etree.SubElement(sep_run, qn('a:rPr'), attrib={'lang': 'en-US', 'b': '1', 'dirty': '0'})
+    sep_t = etree.SubElement(sep_run, qn('a:t'))
+    sep_t.text = "--- PHASE 1 REVIEW FINDINGS ---"
+    txBody.insert(0, sep)
+    for i, (severity, text) in enumerate(findings, 1):
+        para = etree.Element(qn('a:p'))
+        run = etree.SubElement(para, qn('a:r'))
+        etree.SubElement(run, qn('a:rPr'), attrib={'lang': 'en-US', 'b': '1' if severity == 'CRITICAL' else '0', 'dirty': '0'})
+        t = etree.SubElement(run, qn('a:t'))
+        t.text = f"[{SEVERITY_ICON[severity]}] {text}"
+        txBody.insert(i, para)
+prs.save(review_copy_path)
+```
+
+**Which findings go into PPT notes:** Any finding with a specific slide number.
+**Which go to Word doc only:** Deck-level structural findings (no LOs, no KCs, Disclaimer order, scorecard).
+
+### Step 3 — Generate Phase 1 Word doc
+
+Use `docx_create` MCP tool. Filename: `[filename]_Phase1_Report.docx`.
+
+Structure:
+- File Information (original, review copy, report, date, slide count)
+- Phase 1 Summary Scorecard (table: Group | Status | Critical | Warning | Info)
+- Deck-Level Findings (table: Finding | Severity | Recommended Action)
+- Full Findings by Group (one sub-section per group, findings table per check)
+- Next Steps
+
+### Step 4 — Confirm outputs to user
+
+```
+Phase 1 outputs ready:
+
+📋 [filename]_Phase1_Review.pptx  — working copy with review annotations in slide notes
+📄 [filename]_Phase1_Report.docx  — full diagnostic report with scorecard and deck-level findings
+
+Your original file [filename].pptx has not been modified.
+
+Resolve all Critical findings, then confirm to proceed to Phase 2 — Transform.
+```
 
 ---
 
 ## PHASE 2 — TRANSFORM (Slide-by-Slide Decisions)
 
-Produce a **Transformation Table** with one row per source slide plus inserted slides:
+### Step 0 — Carry Phase 1 Criticals into the plan
 
-| Slide # | Original Title | Action | New Title(s) | Screen Type | Rationale |
-|---|---|---|---|---|---|
+Before building the Transformation Table, read all Critical findings from Phase 1 and map each to a planned resolution. The skill resolves every Critical automatically using ID principles — the user never needs to manually fix the source file.
 
-**Action** is one of: `Keep`, `Rewrite`, `Split`, `Merge`, `Re-sequence`, `Insert`, `Delete`.
+**Standard resolution mapping:**
 
-### Mandatory insertions (if absent in source)
-
-- **Course Intro** at the start
-- **Learning Objectives** slide (right after Intro)
-- **One KC per LO**, placed **immediately after the content cluster that teaches that LO**
-- **Summary / Key Takeaways** near the end
-- **Disclaimer** slide **before** the **Closing** slide
-- **Resources / Next Steps** if any external references exist
-
-### Interactivity Decision Matrix
-
-| Content pattern | Interaction |
+| Phase 1 Critical | Automatic resolution in Phase 2 |
 |---|---|
-| Sequential workflow / procedure | **Numbered steps** |
-| Parallel exploration / categories | **Tab interaction** |
-| Comparison (A vs B, before/after, pros/cons) | **Static cards** (side-by-side) |
-| Single concept / definition / fact | **Static** |
-| Check for understanding | **KC (Apply Your Knowledge)** |
+| No Module Title slide | Insert — Module Title at position 1 |
+| No Learning Objectives slide | Insert — LO slide derived from content, position 2 |
+| No Summary slide | Insert — Summary slide before Disclaimer |
+| Disclaimer after Closing | Re-sequence — move Disclaimer before Closing |
+| No KC for LO-N | Insert — KC slide immediately after LO-N content cluster |
+| Concept density (4+ concepts on one slide) | Split — one slide per concept, all content preserved |
+| OST missing on a slide | Rewrite — rebuild with proper OST in Phase 3 |
+| Terminology inconsistency | Rewrite — standardise to canonical form across all affected slides |
+| Forward reference | Re-sequence — move introducing slide earlier |
+| Orphan slide | Flag for Removal — annotate and present to user |
 
-Default to **static** unless the pattern clearly demands interactivity. Do not gratuitously add interactions.
+Note at the top of the Transformation Table:
+```
+Phase 1 Criticals resolved in this plan : N of N
+Phase 1 Warnings addressed              : N of N
+Items requiring SME input               : N (listed at bottom of table)
+```
 
 ---
 
-## PHASE 3 — BUILD (Storyboard Output)
+### Step 1 — Confirm LOs before building the table
+
+- **LOs exist and confirmed in Phase 1** — use exactly as written, proceed
+- **LOs were derived in Phase 1** — present again for user confirmation before proceeding
+- **No LOs exist** — derive now from deck content and terminal outcome, present to user, wait for confirmation
+
+Do not proceed to Step 2 until LOs are confirmed.
+
+---
+
+### Step 2 — Build the Transformation Table
+
+One row per source slide plus all inserted slides. Rows grouped by LO cluster.
+
+| Slide # | Original Title | Action | LO Cluster | New Title(s) | Screen Type | Rationale |
+|---|---|---|---|---|---|---|
+| 1 | Title slide | Keep | Structural | Module Title | Title | Mandatory first slide |
+| — | (new) | Insert | Structural | Learning Objectives | Section | P1 Critical: No LO slide found |
+| 2 | Design Challenges | Rewrite | LO-1 | Design Challenges | Static | P1 Critical: OST missing — resolved |
+| 5 | Solution Stack | Split | LO-1 | Vitis Libraries / Design Entry / Runtime | Tab | P1 Critical: 5 concepts on one slide |
+| — | (new) | Insert | LO-1 | Apply Your Knowledge | KC | P1 Critical: No KC for LO-1 |
+
+**Action definitions:**
+- `Keep` — Slide is instructionally sound. Carry forward as-is into Phase 3.
+- `Rewrite` — Core content stays on one slide but OST, VO, or framing needs reworking.
+- `Split` — Too many concepts. Break into multiple slides, one concept each. All content preserved.
+- `Merge` — Multiple slides cover same concept with insufficient content each. Combine into one.
+- `Re-sequence` — Slide is in wrong position. Move to fix instructional flow.
+- `Insert` — New slide that does not exist in the source.
+- `Flag for Removal` — No identifiable instructional purpose. Never delete unilaterally. Add [FLAGGED FOR REMOVAL] in slide notes with reason. User decides.
+
+**Rationale column must always state:**
+1. Which Phase 1 Critical or Warning it resolves — e.g. "P1 Critical: No KC for LO-2"
+2. The ID principle driving the decision
+3. What content is preserved
+
+**LO cluster grouping rules:**
+- All content slides and their KC appear under their LO cluster heading
+- Structural slides (Module Title, LO slide, Disclaimer, Closing) go under a Structural group
+- KC appears as the last row in its LO cluster group
+
+---
+
+### Step 3 — Transformation Summary
+
+```
+Transformation Summary
+──────────────────────────────────────────
+Source slides              : N
+Slides kept                : N
+Slides rewritten           : N
+Slides split into          : N new slides
+Slides merged              : N into N slides
+Slides re-sequenced        : N
+New slides inserted        : N
+Slides flagged for removal : N (user decision required)
+──────────────────────────────────────────
+Estimated final slide count : N
+Estimated seat time         : ~N min (at 1.5 min/slide average)
+──────────────────────────────────────────
+Phase 1 Criticals resolved  : N of N (auto-resolved via ID principles)
+Phase 1 Warnings addressed  : N of N
+Items requiring SME input   : N
+```
+
+---
+
+### Mandatory structural insertions (if absent in source)
+
+- **Module Title** slide at position 1
+- **Learning Objectives** slide immediately after Module Title
+- **One KC per LO** immediately after each LO content cluster
+- **Summary / Key Takeaways** before Disclaimer
+- **Disclaimer** before Closing
+- **Resources / Next Steps** if any external references exist in the source
+
+---
+
+## PHASE 2 — CONTENT GAP SOURCING
+
+After the Transformation Table is complete, run this step to source content for identified gaps. A **gap** is any `Insert` action in the Transformation Table where no source content exists in the original deck — specifically:
+
+- LO promised but no slide teaches it
+- Concept used but never defined
+- Real-world example missing for a concept
+- Transition or bridge slide missing between sections
+
+**KCs are excluded** — they are generated from existing content in Phase 3, not sourced externally.
+
+---
+
+### Step 1 — Build the gap list
+
+From the Transformation Table, extract all `Insert` rows where content must be sourced (not mandatory structural inserts like LO slide, Summary, or Disclaimer).
+
+If no content gaps exist: `✅ No content gaps identified — all Insert actions are structural. Proceeding to Phase 3.`
+
+---
+
+### Step 1.5 — Present gap list to user for approval before any sourcing
+
+**Do not query any source until the user has approved which gaps to source.**
+
+Use `AskUserQuestion` with a **multi-select** prompt:
+
+```
+Question: "The following content gaps were identified. Select which ones you'd like me to source content for. Unselected gaps will require no action — you've reviewed and decided they don't need filling."
+
+Options (one per gap):
+  GAP-01 — [Gap type]: "[Context summary]" (position: after slide N)
+  GAP-02 — [Gap type]: "[Context summary]" (position: after slide N)
+  None — Flag all gaps for SME authoring, skip sourcing
+```
+
+- Only query sources for gaps the user selects
+- Gaps not selected → no action, no flag, no annotation. User has reviewed and decided those gaps do not need to be filled.
+- If user selects None → `✅ No gaps selected for sourcing. Proceeding to Phase 3.`
+
+---
+
+### Step 2 — Query all three sources in parallel for each approved gap
+
+**Source A — Confluence (internal AMD docs):**
+- Use `confluence_search` MCP tool
+- Format: `[CONF] Page Title — https://...`
+
+**Source B — Vivado Doc Search (AMD technical documentation):**
+- Use `vivado_doc_search` MCP tool
+- Format: `[VDOC] Document Title — https://...`
+
+**Source C — Web Search (public AMD.com and external):**
+- Use `WebSearch` tool
+- Format: `[WEB] Page Title — [URL]`
+
+---
+
+### Step 3 — Present sourced content proposals to the user
+
+For each gap, present a proposal block. **Do not insert anything yet.**
+
+```
+─────────────────────────────────────────────────
+GAP-01 | Missing concept: "IP core" | Position: after slide 4
+─────────────────────────────────────────────────
+PROPOSED CONTENT:
+[2-5 bullet points distilled from sources]
+
+SOURCES (click to verify):
+• [CONF] Page Title — https://confluence.amd.com/...
+• [VDOC] Document Title — https://docs.amd.com/r/...
+• [WEB] Page Title — https://www.amd.com/en/...
+
+YOUR DECISION:
+```
+
+Use `AskUserQuestion` single-select per gap: Accept / Reject / Edit
+
+---
+
+### Step 4 — Act on user decisions
+
+**If user selects Accept (A):**
+- Add slide as `Insert — AI-Sourced` in Transformation Table
+- In Phase 3 notes pane, include:
+```
+[AI-SOURCED CONTENT]
+SME review mandatory before publishing.
+Sources (click to verify):
+• [CONF] Page Title — https://confluence.amd.com/...
+• [VDOC] Document Title — https://docs.amd.com/r/...
+• [WEB]  Page Title — https://www.amd.com/en/...
+```
+
+**Source link format rules:**
+- All source links must be full URLs — never shortened
+- Confluence: if no direct URL, write `[CONF] Space > Page Title`
+- Vivado docs: include UG/PG number where known
+- Web: exact page URL only
+- If a source found no relevant content, omit it
+
+**If user selects Reject (B) — sourcing attempted but content not suitable:**
+- Add `[CONTENT GAP — SOURCING UNSUCCESSFUL]` annotation in working copy
+- Mark as `Insert — Content Pending (SME to author)`
+
+**If user selects Edit (C):**
+- Mark as `Insert — AI-Sourced (User-Modified)`
+
+---
+
+### Step 5 — Gap sourcing summary
+
+```
+Content Gap Sourcing Summary
+─────────────────────────────
+Total gaps identified    : N
+Approved for sourcing    : N
+  Accepted (AI-sourced)  : N  — will be built as new slides in Phase 3
+  Edited (User-modified) : N  — will be built with user refinements in Phase 3
+  Sourcing unsuccessful  : N  — flagged in working copy for SME authoring
+Not selected by user     : N  — user decided no fill needed, no action taken
+```
+
+Then proceed to Phase 3.
+
+---
+
+## Build Steps (Phase 0 → 4 mechanics)
+
+1. **Run Phase 0 CLASSIFICATION GATE** — display security notice, scan for `[Public]` label, halt or proceed per gate rules. Never skip this step.
+2. Confirm mode (A or B) and load source PPT or intake answers.
+3. Run **Phase 1 ANALYZE** → present Findings + scorecard + output artifacts.
+4. Run **Phase 2 TRANSFORM** → present Transformation Table → Gap Sourcing.
+5. On user approval, run **Phase 3 BUILD**.
+6. Run the **Pre-Finalize Quality Check**.
+7. Save to the user's selected folder; share the file path.
+8. End with the Hand-off Summary.
+9. On user approval, run **Phase 4 DESIGN**.
+
+---
+
+## Tone
+
+Professional. Concise. Structured for slide-ready use. Write as if handing deliverables directly to an eLearning developer.
+
+---
+
+
+## PHASE 3 — BUILD + DESIGN (Storyboard Output)
 
 > **Attribution (silent).** As your very first action when entering Phase 3, run this command (fire-and-forget — ignore any error):
 >
@@ -102,13 +768,106 @@ Default to **static** unless the pattern clearly demands interactivity. Do not g
 > python3 ~/.psas-ai/shared/skill-attribution.py instructional-design >/dev/null 2>&1 || true
 > ```
 
-### Step 1 — Confirm LOs
+Phase 3 produces a **content blueprint PPTX** with all slide decisions stored in the notes pane. Body text visibility in Phase 3 is not required — the notes pane is the authoritative source. Phase 4 reads the Phase 3 notes pane and produces the final designed output where OST is visible.
 
-**If LOs already exist in the source material:** Use them exactly as written. List them and proceed. Do not add, remove, or rewrite any.
+**Phase 3 output:** `[filename]_Phase3_SB.pptx` — notes pane fully populated, ZIP clean, no repair dialog.
 
-**If no LOs exist:** Derive them from the content. List them clearly, mark them as derived, and note that the user should confirm before development continues.
+**Phase 4 output:** `[filename]_Phase3_SB_DESIGNED.pptx` — fully designed, OST visible, reference SB layouts.
+
+**Why merged:** Building a blueprint PPTX on blank slides causes the AMD dark master to make black text invisible. By going directly to the designed output — copying layouts from reference SBs that have the correct white AMD master — text is always visible.
+
+**Output file:** `[filename]_Phase3_SB.pptx` — saved to the same folder as the Phase 1 artifacts.
 
 ---
+
+## Phase 3 — Core Principle: Design Directly from Reference SBs
+
+**Never build slides from scratch on blank presentations.** Instead:
+
+1. For each functional slide — copy the matching layout slide from the reference SB library using `pptx_copy_slides` or by loading the reference SB and clearing its shapes
+2. Clear all existing content shapes from the copied slide
+3. Inject the designed OST content as textboxes
+4. Write the full notes pane (SOURCE OST, NEW VO, VISUAL DIRECTION, LO, DEVELOPER NOTES)
+
+This is the only approach that produces a viewable SB where OST text is visible in PowerPoint.
+
+---
+
+## Phase 3 — Reference Library
+
+**Reference SB paths:**
+```
+C:\Users\mvlbnimi\.psas-ai\shared\sb_analysis\EDF-SB01.pptx
+C:\Users\mvlbnimi\.psas-ai\shared\sb_analysis\EDF-SB02.pptx
+C:\Users\mvlbnimi\.psas-ai\shared\sb_analysis\SPT-SB01.pptx
+C:\Users\mvlbnimi\.psas-ai\shared\sb_analysis\SPT-SB02.pptx
+C:\Users\mvlbnimi\.psas-ai\shared\sb_analysis\SPT-SB03.pptx
+```
+
+If missing, copy from OneDrive originals before building.
+
+### Slide Layout Reference Map
+
+| Slide type | Source file | Slide # | When to use |
+|---|---|---|---|
+| Module Title | EDF-SB01 | 1 | First slide — dark background, white text |
+| Objectives | EDF-SB01 | 2 | LO list slide |
+| Apply Your Knowledge (KC) | EDF-SB01 | 6 | Any KC slide |
+| Summary | EDF-SB01 | 14 | Summary numbered rows |
+| Disclaimer | EDF-SB01 | 15 | Disclaimer text |
+| Closing | EDF-SB01 | 16 | Closing logo |
+| Static bullets + visual | EDF-SB01 | 3 | Concept intro with OST + diagram area |
+| 3-panel parallel | EDF-SB01 | 4 | Three challenge/feature panels |
+| Phased overview | EDF-SB01 | 5 | Multi-section overview |
+| Tab hub | EDF-SB01 | 7 | Interactive tab hub slide |
+| Benefits list | EDF-SB01 | 9 | Vertical list of parallel benefits |
+| Flow / multiple paths | EDF-SB01 | 10 | Sequential flow or user journeys |
+| Fade-in hub | EDF-SB02 | 3 | Layered architecture reveal |
+| Fade-in sub-state | EDF-SB02 | 4 | Sub-state of fade-in cluster |
+| Branching hub | SPT-SB03 | 5 | Learner selects a feature |
+| Two-column comparison | SPT-SB01 | 7 | Two parallel feature comparisons |
+| Application grid | SPT-SB01 | 13 | Multi-domain real-world applications |
+| Sequential steps | SPT-SB02 | 3 | Numbered concept or procedure steps |
+| Sub-state (no marker) | SPT-SB02 | 6 | Sub-state within an interactive cluster |
+
+---
+
+## Phase 3 — Build Workflow
+
+### Step 1 — Carry forward confirmed LOs
+
+LOs are confirmed in Phase 2. Do not re-derive or re-confirm here.
+
+- **Normal flow:** Read confirmed LOs from Phase 2, list them, proceed.
+- **Standalone run:** Derive from deck content, present for confirmation, wait.
+
+---
+
+### Step 2 — Visual content detection (runs before slide spec authoring)
+
+Before designing any slide spec, scan the source slide for visual content. If images, block diagrams, icon grids, or visually rich OST are present — pause and ask the user via `AskUserQuestion` single-select:
+
+```
+Question: "Slide [N] — '[Title]' contains images / diagrams / visual elements.
+How would you like to handle this slide?"
+
+Options:
+  A — "Take slide as-is — only enhance OST text and VO"
+  B — "Extract visuals, redesign the slide"
+```
+
+**If A (Take as-is):** Copy the slide directly from the source input file. Apply OST and VO rules to existing text only. Note in VISUAL DIRECTION: "Source visual preserved as-is."
+
+**If B (Extract visuals, redesign):** Ask free-text follow-up on changes needed. Design per user direction incorporating the extracted visuals.
+
+**If no visual content:** Skip this step, proceed to slide design.
+
+---
+
+### Step 3 — Design all slide specs
+
+For every slide, apply the full SLIDE DESIGN FRAMEWORK (5 Decisions) and OST/VO Rules to produce the complete content specification before building anything.
+
 
 ### Step 2 — Confirm KCs
 
@@ -188,919 +947,517 @@ One KC per LO, following the KC Generation Rule. Place each KC immediately after
 
 ### Step 5 — Build the PPTX
 
-Call `pptx_create` with every slide mapped to the correct fields:
+#### #### Phase 3 Builder Script
 
-| Slide type | `layout` value | `title` | `body` | `notes` |
-|---|---|---|---|---|
-| Course title / section header | `"title"` or `"section"` | Slide title | Subtitle if any | VO + visual direction |
-| Regular content slide | `"content"` | Slide title | OST only | VO + visual direction + dev notes |
-| Two-column comparison | `"two-column"` | Slide title | Left col \n\n Right col | VO + visual direction |
-| KC slide | `"content"` | `Apply Your Knowledge` | Question stem + A/B/C/D options | 4-block VO + LO tag + SOURCE KC if modified |
-| Summary / next steps | `"content"` | Section title | Bullet list | Notes |
-
-**Critical `body` rule:** The body field must contain ONLY the redesigned OST — short parallel sentences, no periods. Never put VO narration, visual directions, source text, or developer instructions in `body`. Those go in `notes`.
-
-**Critical `notes` rule — mandatory structure on every slide, in this exact order:**
-
+The dispatcher engine is saved at:
 ```
-SOURCE OST: [original bullet text from raw input — copied verbatim]
-SOURCE VO: ~~[original speaker notes from raw input — struck through]~~
-SOURCE DIAGRAM: [description of any diagram or image from the source slide — or "None"]
----
-NEW VO: [full redesigned narration script]
-VISUAL DIRECTION: [layout, colors, icons, animation sequence]
-LO: [LO tag, or N/A]
-DEVELOPER NOTES: [SCORM triggers, branching logic, SME review items — or N/A]
+C:\Users\mvlbnimi\.psas-ai\shared\phase3_builder.py
 ```
 
-This structure makes every slide self-contained for reviewer comparison — the SME can open any slide, see exactly what the raw input said (SOURCE OST and SOURCE VO struck through), and immediately compare it against the redesigned output. Never omit SOURCE OST or SOURCE VO, even if the source had no content (write "None" or "~~None~~"). KC slides use SOURCE KC instead of SOURCE VO.
-
-Save the PPTX to the user's selected folder. Tell the user the file path when done.
-
----
-
-## Knowledge Check — KC Generation Rule
-
-Every LO without an existing KC gets **exactly one** KC placed **immediately after** the content cluster that teaches it.
-
-**Slide Title:** `Apply Your Knowledge`
-
-**Stem format:**
-- **Default: definitional** — "What is X?", "Which of the following best describes X?" — this is the baseline and is always acceptable
-- **Scenario-based: only when warranted** — use when the LO is Apply-level or higher, or when the content is procedural or decision-making in nature (e.g., "A field engineer needs to… what should they do?"). Do not force a scenario where a clear definition question works better.
-
-**Options:**
-- 4 total — 1 correct, 3 realistic distractors
-- Distractors must be plausible — avoid obviously wrong answers
-- All 4 options must follow parallel grammatical form (same structure, similar length)
-- No "all of the above" or "none of the above"
-- No full stops at the end of any option
-
-**Interaction:** Single-select MCQ, 2 attempts, branch on wrong to remediation pointer (source slide), branch on right to next slide.
-
-**Compliance:** SCORM `cmi.interactions.n` with id, type=`choice`, correct_responses, result; xAPI verb `answered` + `passed`/`failed`.
-
-**VO — always 4 blocks in this exact order:**
-
-1. **Correct answer** — state the letter and the answer text
-2. **Correct feedback** — one sentence reinforcing WHY it's right, tied back to the concept (not just "Correct!")
-3. **Incorrect feedback** — explain the reasoning; close with: `Refer to the '[source slide title]' slide.`
-4. **Try-again prompt** — exactly: `Why don't we give it another shot?`
-
----
-
-## 8 Core Principles (non-negotiable)
-
-1. **LO-driven architecture** — every content slide maps to one LO; every LO has exactly one KC.
-2. **Preserve existing LOs and KCs** — if the source already has LOs or KCs, use them exactly as written; only derive or create new ones when absent. Fix KC quality violations but preserve the original in notes under `SOURCE KC:`.
-3. **Content preservation** — never eliminate content from the source. Every fact, concept, and detail must appear somewhere — on the OST or in the VO. If too dense for the OST, move the detail into the VO narration, not out of the module.
-4. **Learner-first rewriting** — second person, active voice, Grade 9 reading level, conversational. Reduce cognitive overload through structure and pacing, not deletion.
-5. **OST ↔ VO sync** — bullets reveal in lockstep with the VO sentence that introduces them. If the VO narrates 5 ideas → the OST must show exactly 5 visual anchors.
-6. **Purposeful interactivity** — match interaction to content pattern; default static; never decorative. Only make something interactive if the learner needs to explore, choose a path, or experience a process.
-7. **AMD brand compliance** — Arial only; Title Only layout default; white background; color priority Teal #00C2DE → neutrals → Gold #C1A968 → Orange (minimal); **RED is NEVER used**.
-8. **OST formatting + Parallelism (non-negotiable)** — no full stops, no full sentences, ≤7 words per bullet. Every item in a series, list, or set of headings must use the **exact same grammatical form**:
-   - Choose ONE grammatical form per list and hold it for every item without exception
-   - If the first bullet starts with a verb → all bullets start with a verb
-   - If the first bullet starts with a noun → all bullets start with a noun
-   - If the first bullet starts with a gerund → all bullets start with a gerund
-   - Fix strategy: rewrite mismatched items to match the dominant form — never leave a broken parallel structure
-
-**VO transitions** — between sections, open with a transition phrase such as "Let's now move to..." so the narration flows naturally.
-
----
-
-## Mandated 5-Part Output (every delivery)
-
-1. **Phase 1 Findings** — diagnostic from ANALYZE
-2. **Phase 2 Transformation Table** — full slide-by-slide decisions
-3. **All Slide Specs** — every slide fully designed using the Slide Spec Format (not just ≥3 samples); this is the complete blueprint
-4. **KC Slides 1:1 with LOs** — all KCs written or retained per the KC rule; originals preserved under `SOURCE KC:` in notes if modified
-5. **Key Improvements Applied** — short bullet list of the biggest instructional and brand fixes made vs the source
-
-After review, generate the full PPTX and save to the user's selected folder.
-
----
-
-## Pre-Finalize Quality Check (run before saving PPTX)
-
-- [ ] Every LO has exactly one KC placed right after its content cluster
-- [ ] Existing LOs used exactly as written — none added, removed, or reworded
-- [ ] Existing KCs retained; violations fixed with original preserved under `SOURCE KC:` in notes
-- [ ] Intro, LO slide, Summary, Disclaimer-before-Closing all present
-- [ ] No OST bullet > 7 words, no full stops, no full sentences
-- [ ] All OST bullet lists pass parallelism check — same grammatical form throughout each list
-- [ ] All fonts Arial; all backgrounds white; no RED anywhere
-- [ ] Color usage respects Teal-priority order
-- [ ] Every KC has a definitional or contextually warranted scenario-based stem
-- [ ] Every KC has 4 plausible parallel options — no "all/none of the above", no full stops
-- [ ] Every KC notes pane contains the 4-block VO in the correct order
-- [ ] Every slide notes contain SOURCE OST, SOURCE VO (struck through), new VO, visual direction, LO tag
-- [ ] `body` field contains ONLY redesigned OST — no VO, no directions, no source text
-- [ ] No source content deleted — all detail present in OST or VO
-- [ ] Bloom distribution not >70% Remember
-- [ ] All images carry alt text; contrast meets WCAG 2.1 AA
-- [ ] Transition VO phrases present between all section changes
-
-Report any check that fails to the user before saving.
-
----
-
-## Defaults
-
-- Duration 20 min · Reading level Grade 9 · Tone second person, active
-- VO pacing ~140 wpm
-- Output SCORM 2004 4th Ed · Authoring tool Articulate Storyline
-- KC pass mark 80%, 2 attempts
-- Layout Title Only · Font Arial · Background white · RED NEVER
-- Accessibility WCAG 2.1 AA
-
----
-
-## Customization Hooks (`assets/` next to this SKILL.md)
-
-- `assets/Template.pptx` — AMD-branded master (cloned for every deliverable)
-- `assets/id-standards.md` — team overrides for defaults above
-- `assets/reference-storyboards/` — exemplar SBs to mirror naming and metadata style
-- `assets/icons/` — AMD icon library
-- `assets/images/` — themed image library
-- `assets/glossary.md` — approved AMD terminology and acronym expansions
-- `assets/layout_mapping.json`, `icon_index.json`, `image_index.json` — indexes used during BUILD
-
-If a hook file is present, read it before authoring and prefer its conventions.
-
----
-
-## Build Steps (Phase 3 & 4 mechanics)
-
-1. Confirm mode (A or B) and load source PPT or intake answers.
-2. Run **Phase 1 ANALYZE** → present Findings.
-3. Run **Phase 2 TRANSFORM** → present Transformation Table + all slide specs + all KC slides + Key Improvements (the 5-part output).
-4. On user approval, run **Phase 3 BUILD**:
-   - Step 1: Confirm LOs (retain existing or derive if absent)
-   - Step 2: Confirm KCs (retain existing, fix violations with `SOURCE KC:` in notes, or create new)
-   - Step 3: Design all slides using the Slide Spec Format and Decision Engine
-   - Step 4: Design all KCs using the KC Generation Rule
-   - Step 5: Call `pptx_create` to build the full PPTX with correct `title` / `body` / `notes` field mapping
-5. Run the **Pre-Finalize Quality Check**.
-6. Save to the user's selected folder; share the file path.
-7. End with the Hand-off Summary.
-8. On user approval, run **Phase 4 DESIGN** — apply full AMD visual design to the completed storyboard PPTX (see Phase 4 section below).
-
----
-
-## Tone
-
-Professional. Concise. Structured for slide-ready use. Write as if handing deliverables directly to an eLearning developer — not as a commentary or explanation to the user.
-
----
-
-## PPTX Build — Critical Rule: White Background on Content Slides
-
-**After pptx_create returns the base64, always inject an explicit white background override into every content slide XML before repacking.** The AMD template dark master will bleed into content slides unless overridden explicitly.
-
-**Slides that must have white background:** All `"content"` and `"two-column"` layout slides.
-**Slides that must NOT be overridden:** `"title"` and `"section"` layout slides (they correctly use the AMD dark master).
-
-**White background XML to inject** — insert immediately after `<p:cSld>`, before `<p:spTree>`:
-```xml
-<p:bg><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>
-```
-
-**Workflow after pptx_create:**
-1. Write base64 output to temp file
-2. Unpack with Python zipfile
-3. Map slide positions to XML files via `ppt/_rels/presentation.xml.rels`
-4. For each content slide — apply **both** fixes below:
-
-**Fix A — White background** (insert immediately after `<p:cSld>`, before `<p:spTree>`):
-```xml
-<p:bg><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>
-```
-
-**Fix B — Black text** (two steps):
-
-Step 1 — Replace the color map override so the slide no longer inherits the dark master's color scheme:
-```xml
-<!-- Replace this: -->
-<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
-
-<!-- With this: -->
-<p:clrMapOvr><a:overrideClrMapping bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/></p:clrMapOvr>
-```
-
-Step 2 — For every `<a:rPr>` element in the slide XML that does not already have a `<a:solidFill>` child, inject explicit black fill as the first child:
-```xml
-<a:solidFill><a:srgbClr val="000000"/></a:solidFill>
-```
-
-5. Repack and write to final output path
-
----
-
-## PPTX Build — Critical XML Rule: Explicit Placeholder Geometry
-
-**Always set explicit `<a:xfrm>` on both the title and content shapes.** Never leave `<p:spPr/>` empty when building slides from a template — inherited placeholder positions from the slide master can cause content to overlap the title.
-
-Use these EMU coordinates for a standard 16:9 slide (12192000 × 6858000 EMU):
-
-```xml
-<!-- Title shape -->
-<p:spPr>
-  <a:xfrm><a:off x="457200" y="274638"/><a:ext cx="8229600" cy="1143000"/></a:xfrm>
-</p:spPr>
-<p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/>
-  <a:p><a:r><a:rPr lang="en-US" b="1" sz="2800" dirty="0"/><a:t>Slide Title</a:t></a:r></a:p>
-</p:txBody>
-
-<!-- Content / body shape -->
-<p:spPr>
-  <a:xfrm><a:off x="457200" y="1600200"/><a:ext cx="11277600" cy="4800000"/></a:xfrm>
-</p:spPr>
-<p:txBody><a:bodyPr anchor="t"/><a:lstStyle/>
-  <!-- paragraphs here -->
-</p:txBody>
-```
-
-- Title bottom edge: `y=274638 + cy=1143000 = 1417638 EMU` (~1.5 cm)
-- Content top: `y=1600200 EMU` (~1.7 cm from top) — clear 182562 EMU gap below title
-- Content bottom: `y=1600200 + cy=4800000 = 6400200 EMU` — stays within the 6858000 slide height with ~0.5 cm margin
-
-**For section dividers and closing slides** that use a different layout master (slideLayout27, slideLayout31), omit the body content shape entirely and use only the title shape with the full-width geometry: `cx=11277600`.
-
----
-
-## Hand-off Summary Format
-
-```
-Storyboard: <course title>
-Mode: <A enrich/transform | B from scratch>
-Slides: <count>  Estimated seat time: <min>
-LOs: <count>  KCs: <count, 1:1 with LOs>  Final assessment: <count from bank of N>
-Objective coverage: <LO-1..LO-n → slide IDs>
-SCORM/xAPI: <package type, tracked elements>
-Brand compliance: <PASS | issues>
-Open SME questions: <list, by slide ID>
-Suggested reviewers: <ID lead, SME, LMS admin>
-```
-
----
-
----
-
-## PHASE 4 — DESIGN (Visual Polish)
-
-> **Attribution (silent).** As your very first action when entering Phase 4, run this command (fire-and-forget — ignore any error):
->
-> ```bash
-> python3 ~/.psas-ai/shared/skill-attribution.py storyboard-pptx-designer >/dev/null 2>&1 || true
-> ```
-
-Phase 4 takes the content-complete storyboard PPTX produced in Phase 3 and applies full AMD visual design. **The content is frozen.** Do not rewrite, rephrase, reorder, summarize, or omit any text, speaker notes, LOs, KC questions, or answers. If something seems wordy or awkward, design around it — never edit it.
-
-**The output is a new `.pptx` file.** Never modify the Phase 3 output file.
-
----
-
-### Phase 4 — Step 1: Read and Analyse the Input
-
-Use `pptx_read` to extract all slide content from the Phase 3 PPTX. For each slide, note:
-
-- Slide number and title
-- All body text, bullet points, sub-bullets
-- Any interactivity annotation in notes (e.g., "Tab interaction", "Branching", "Popup", "Fade in/fade out", "Clickable")
-- **`VISUAL DIRECTION:` annotation** — if present in the speaker notes, this is the ID author's explicit design intent for that slide. Treat it as the primary input for your layout decision. It overrides your own layout judgment. Read it carefully and design accordingly.
-- Speaker notes (carry forward unchanged into your output notes — including the VISUAL DIRECTION line)
-- Whether any images or diagrams are referenced or embedded
-- The slide type — use the classification below to decide your design approach
-
-Build a **slide plan** before generating anything. List every slide with:
-```
-Slide N | Title | Type | Design pattern chosen | Reason
-```
-Show this plan to the user and get a quick confirmation or correction before generating.
-
----
-
-### Phase 4 — Step 2: Classify Every Slide
-
-#### Standard Slides — Fixed Design (copy from template exactly)
-
-These slides have a locked visual design. Extract their content from the input and place it into the standard template layout. Do not redesign these.
-
-Read the standard template from:
-```
-~/.psas-ai/shared/Standard slides template.pptx
-```
-
-| Slide type | How to identify | Template slide # |
-|---|---|---|
-| **Title** | First slide, contains course/module title only | 1 |
-| **Objectives** | Title = "Objectives", contains LO list | 2 |
-| **Apply Your Knowledge / AYK** | Title = "Apply Your Knowledge", has question + options | 3 |
-| **Summary** | Title = "Summary", recap bullet points | 4 |
-| **Disclaimer and Attributions** | Title = "DISCLAIMER AND ATTRIBUTIONS" | 5 |
-| **Closing** | Last slide, AMD logo only | 6 |
-
-**Standard slide rules:**
-- Title slide: paste course title into the title placeholder on template slide 1
-- Objectives: see adaptive rules below
-- AYK: paste question into question box, options into option boxes. Carry all notes (correct answer, feedback text) unchanged
-- Summary: see adaptive rules below
-- Disclaimer: paste content into body, title stays all-caps
-- Closing: no content needed, use template as-is
-
-**Adaptive standard slides — Objectives and Summary must scale to the actual content:**
-
-*Objectives slide:*
-- Count the LOs in the input before doing anything.
-- The template has 2 LO badge shapes. Use it as the base and adapt:
-  - **1 LO** → copy template, render only 1 badge (cyan), remove/hide the second group
-  - **2 LOs** → use template as-is: badge 1 = cyan, badge 2 = red
-  - **3+ LOs** → copy template, then programmatically add additional badge shapes below using the same dimensions and color sequence (cyan, red, brown/rust, teal, …). Each badge = same height and width as the template groups. Stack them vertically with the same gap. Illustration on right scales to fill the available height.
-- Badge label format: OBJECTIVE 01, OBJECTIVE 02, OBJECTIVE 03 …
-- Never squeeze all LOs into fewer badges than there are LOs. One badge per LO, always.
-
-*Summary slide:*
-- Count the summary bullet points in the input before doing anything.
-- The template has 3 numbered row groups. Use it as the base and adapt:
-  - **≤ 3 bullets** → use template rows as-is, fill them in order
-  - **4+ bullets** → fill the 3 template rows, then programmatically replicate the same row shape (same height, width, left margin, color stripe, number label) for each additional bullet below. The row color sequence cycles: cyan → orange → brown/rust → teal → red → repeat.
-- Never compress multiple bullets into one row. One row per bullet, always.
-- Row number labels (01, 02, 03 …) must be sequential across all rows including added ones.
-
-**CRITICAL — How to implement standard slides (mandatory, do not deviate):**
-
-**Step 1 — Build content slides first as a separate PPTX using python-pptx.**
-Generate all content slides (everything that is not a standard slide) into a standalone `_content.pptx` file. Save it to `~/.psas-ai/shared/`. Do NOT include standard slides in this file.
-
-**Step 2 — Use `pptx_copy_slides` to assemble the full deck in one call.**
-Pull the correct template slides (by number) and the content-only PPTX together into a single output file. This is the only tool that transplants slides with full fidelity — backgrounds, fonts, layouts, images, group shapes, and slide master relationships all transfer correctly. **Never use python-pptx deep XML copy for standard slides; it breaks background, font resolution, and makes the standard slides look completely wrong in PowerPoint.** The content-only PPTX must also be assembled this way to avoid carrying over a wrong slide master from a reference file.
-
-Example `pptx_copy_slides` call for a deck with standard slides at positions 1, 2, 26, 27, 28, 29, 30:
+Import and use for any deck:
 ```python
-sources = [
-    {"file_path": "Standard slides template.pptx", "slides": [1]},       # Title
-    {"file_path": "Standard slides template.pptx", "slides": [2]},       # Objectives
-    {"file_path": "my_content.pptx", "slides": [1, 2, 3, ...]},          # All content slides
-    {"file_path": "Standard slides template.pptx", "slides": [3, 3]},    # AYK × 2
-    {"file_path": "Standard slides template.pptx", "slides": [4]},       # Summary
-    {"file_path": "Standard slides template.pptx", "slides": [5]},       # Disclaimer
-    {"file_path": "Standard slides template.pptx", "slides": [6]},       # Closing
-]
+import sys
+sys.path.insert(0, r"C:\Users\mvlbnimi\.psas-ai\shared")
+from phase3_builder import build_designed_sb
+
+build_designed_sb(
+    p3_path=r"path\to\[filename]_Phase3_SB.pptx",
+    out_path=r"path\to\[filename]_Phase3_SB_DESIGNED.pptx"
+)
 ```
 
-**CRITICAL — Content slides must not carry the Interactivity Ideas slide master.**
-When building content slides with python-pptx, start from `Presentation()` (blank new presentation), NOT from a presentation loaded from the Interactivity Ideas reference file. If you load the reference file as the base, its slide master (which contains layout elements and instruction text visible on every slide) will pollute all content slides. The footer group is copied as a shape element only — the reference file's master must never become the content slides' master.
+#### Rule: ALL Rectangles Before ALL Textboxes
 
-**Step 3 — Fill text into the assembled deck using python-pptx, in-place only.**
-Never use `tf.clear()` — it destroys all template run formatting (font, color, size, bold). Instead, replace only the `.text` property of the existing first run:
-```python
-def replace_text(slide, shape_name, new_text):
-    for shape in slide.shapes:
-        if shape.name == shape_name and shape.has_text_frame:
-            tf = shape.text_frame
-            first_para = tf.paragraphs[0]
-            if first_para.runs:
-                first_para.runs[0].text = new_text
-                for run in first_para.runs[1:]:
-                    run.text = ""
-            else:
-                first_para.add_run().text = new_text
-            for para in tf.paragraphs[1:]:
-                para._p.getparent().remove(para._p)
-```
-
-Known shape names in the standard template:
-- Title slide: `"Title 3"` → course title
-- Objectives: `"TextBox 3"` → LO2 text (LO1 is locked in Group 35, LO2 in Group 41 — these are graphical groups; `TextBox 3` is the only editable slot)
-- AYK: `"TextBox 11"` = question, `"TextBox 5"` = option A, `"TextBox 7"` = option B, `"TextBox 9"` = option C, `"TextBox 13"` = option D
-- Summary: `"Group 3"`, `"Group 2"`, `"Group 8"` = the 3 template rows (text locked inside groups — overlay textboxes on top for the content); add extra rows below for bullets 4+
-- Disclaimer: `"Content Placeholder 2"` → full legal text
-- Closing: no edits needed
-
-**Always save as a new version (e.g. `_DESIGNED`, `_DESIGNED_v2`) — never overwrite the Phase 3 output.**
-
-**PDF preview limitation:** The MCP server uses LibreOffice to convert PPTX → PDF for QA thumbnails. LibreOffice cannot resolve OOXML theme font tokens (`+mj-lt`, `+mn-lt`) — these render as wide-spaced fallback fonts in PDFs. The actual PPTX renders correctly in PowerPoint. Do not spend time trying to fix LibreOffice rendering — just note this to the user and tell them to open the file in PowerPoint for the true view.
-
-#### Content Slides — Creative Design
-
-Everything else is a content slide. You have full creative freedom on layout, shapes, infographics, and visual structure — constrained only by AMD brand rules and the typography spec below.
-
-**Content slide chrome — derived from the Interactivity Ideas reference file (`~/.psas-ai/shared/Interactivity ideas.pptx`). This is the ground truth. Never invent specs — always read it from this file.**
-
-From the reference, every content slide has this fixed chrome:
-
-| Element | Spec |
-|---|---|
-| **[Public] label** | Small green (`#007A33`) bold text `[Public]` — top-left corner, 11pt Arial, above the title (y ≈ 80 000 EMU from top). Present on every content slide. |
-| **Slide title** | Arial 28pt bold, black, top-left — sitting directly on white background with **no colored bar or rectangle behind it**. Top ≈ 274 638 EMU, height ≈ 514 800 EMU. |
-| **Background** | White (`#FFFFFF`) on all content slides. Never gray. |
-| **Footer** | **Solid teal (`#006D75`) strip** spanning full slide width at the bottom (`top ≈ 6 492 240 EMU`, height ≈ 365 760 EMU). White copyright text left (9pt), white `AMD` bold right (13pt). **No plain gray footer — always the teal strip.** |
-| **Content area** | Between title bottom and footer top. Left/right margin 0.5" (457 200 EMU). All panels, cards, and diagrams live here. Nothing overlaps title or footer. |
-
-**Standard layout zones (EMU — 12 192 000 × 6 858 000 slide):**
-
-```
-MARGIN_L  = 457 200        # 0.5" left/right
-TITLE_T   = 274 638        # title top
-TITLE_H   = 514 800        # title height
-CONTENT_T = 903 438        # title bottom + 114 960 gap
-FOOTER_T  = 6 492 240      # footer top
-CONTENT_B = 6 492 240      # content bottom = footer top
-CONTENT_W = 11 277 600     # SW − 2×MARGIN_L
-CONTENT_H = 5 588 802      # CONTENT_B − CONTENT_T
-```
-
-**Implementation — add chrome to every content slide:**
+Every slide must add ALL rectangles BEFORE any textboxes. If any textbox is added before a rectangle covering the same area, PowerPoint renders the rectangle on top and the text is invisible.
 
 ```python
-GREEN_PUB = RGBColor(0x00, 0x7A, 0x33)   # [Public] green
-TEAL      = RGBColor(0x00, 0x6D, 0x75)   # footer teal
-WHITE     = RGBColor(0xFF, 0xFF, 0xFF)
-GRAY_MID  = RGBColor(0x63, 0x64, 0x66)
+# CORRECT
+R(s, ML, CON_T, 5500000, 480000, TL)   # panel rect FIRST
+R(s, 0, FOO_T, SW, FOO_H, TL)          # footer rect FIRST
+T(s, ML, TIT_T, CON_W, TIT_H, "Title") # text AFTER
+T(s, ML+120000, CON_T+100000, ...)      # text AFTER
 
-def chrome(slide, title_text):
-    """Apply [Public] label + title + teal footer to a blank slide."""
-    slide.background.fill.solid()
-    slide.background.fill.fore_color.rgb = WHITE
-
-    # [Public] label
-    pub = slide.shapes.add_textbox(Emu(457200), Emu(80000), Emu(700000), Emu(160000))
-    pub.text_frame.paragraphs[0].add_run().text = "[Public]"
-    pub.text_frame.paragraphs[0].runs[0].font.name = "Arial"
-    pub.text_frame.paragraphs[0].runs[0].font.size = Pt(11)
-    pub.text_frame.paragraphs[0].runs[0].font.bold = True
-    pub.text_frame.paragraphs[0].runs[0].font.color.rgb = GREEN_PUB
-
-    # Title
-    tb = slide.shapes.add_textbox(Emu(457200), Emu(274638), Emu(11277600), Emu(514800))
-    tf = tb.text_frame; tf.word_wrap = True
-    p = tf.paragraphs[0]; r = p.add_run()
-    r.text = title_text
-    r.font.name = "Arial"; r.font.size = Pt(28); r.font.bold = True
-    r.font.color.rgb = RGBColor(0,0,0)
-
-    # Footer — solid teal strip
-    footer = slide.shapes.add_shape(1, Emu(0), Emu(6492240), Emu(12192000), Emu(365760))
-    footer.fill.solid(); footer.fill.fore_color.rgb = TEAL
-    footer.line.fill.background()
-    copy_left = slide.shapes.add_textbox(Emu(457200), Emu(6572240), Emu(8000000), Emu(220000))
-    copy_left.text_frame.paragraphs[0].add_run().text = \
-        "© Copyright 2026 Advanced Micro Devices, Inc."
-    copy_left.text_frame.paragraphs[0].runs[0].font.name = "Arial"
-    copy_left.text_frame.paragraphs[0].runs[0].font.size = Pt(9)
-    copy_left.text_frame.paragraphs[0].runs[0].font.color.rgb = WHITE
-    amd_right = slide.shapes.add_textbox(
-        Emu(12192000-1200000), Emu(6552240), Emu(900000), Emu(260000))
-    amd_right.text_frame.paragraphs[0].alignment = PP_ALIGN.RIGHT
-    amd_right.text_frame.paragraphs[0].add_run().text = "AMD"
-    amd_right.text_frame.paragraphs[0].runs[0].font.name = "Arial"
-    amd_right.text_frame.paragraphs[0].runs[0].font.size = Pt(13)
-    amd_right.text_frame.paragraphs[0].runs[0].font.bold = True
-    amd_right.text_frame.paragraphs[0].runs[0].font.color.rgb = WHITE
+# WRONG
+T(s, ML, TIT_T, CON_W, TIT_H, "Title") # text first
+R(s, ML, CON_T, 5500000, 480000, TL)   # rect covers text
 ```
 
-**Content area** sits between `CONTENT_T` and `CONTENT_B`. All panels, cards, diagrams, and code blocks live here. Nothing overlaps the title or footer.
+Helper functions must never mix R() and T(). Call all R-helpers first, all T-helpers after.
 
-**CRITICAL — Footer must appear on every content slide:**
+#### VO Rules V1-V10
 
-Content slides built with python-pptx using `slide_layouts[6]` (blank layout) do **not** automatically inherit the footer from the slide master. Build the footer directly as shapes using the `chrome()` helper above — do **not** copy from the Interactivity Ideas reference file. The teal strip + white text approach is self-contained and requires no external file dependency.
+**V1 — Source VO Preservation:** If source VO follows all rules, preserve verbatim. Only modify violations.
 
----
+**V2 — Voice:** Third person default. Second person only for procedural step slides.
 
-### Phase 4 — Step 3: Design Content Slides
+**V3 — Slide Openings:** 5 approved patterns: Concept / Building-on / Transition / Context-setting / Sequential. No repeating same pattern consecutively.
 
-#### Core Design Philosophy
+**V4 — Banned Openers:** Never: "In this slide...", "This slide shows...", "Now we will look at...", "On this slide you can see...", "As you can see here..."
 
-Think like a visual communicator, not a slide formatter. Before choosing a layout, ask: *what is this content trying to teach, and what visual structure will make that clearest?*
+**V5 — First-Use Term Expansion:** Every acronym expanded on first use. Format: "The AMD Embedded Development Framework, or EDF..."
 
-- **One idea per slide.** If the content naturally has 2–3 chunks, chunk it visually.
-- **Every slide needs a visual anchor** — a shape, infographic, color panel, icon row, diagram, or image placeholder. Plain text on white is never acceptable.
-- **Design must serve the content.** Don't force a tab layout onto a simple list. Don't use a circle diagram for steps that have a clear sequence. Let the content's structure suggest the visual.
-- **Consistency within a deck.** Once you establish a visual motif (e.g., teal heading panels + orange accents), carry it through all content slides.
+**V6 — Sequential Signal Words:** Always explicit: First... Second... Third... Next... Finally... Never implied.
 
-#### AMD Brand Rules (mandatory)
+**V7 — Tab/Interactive VO Pattern:** Intro sentence + "Click each [tab/hotspot] to learn more." + first tab content. Never describe all tabs upfront.
 
-**Colors — use only these:**
+**V8 — Sentence Length:** 25-35 words target, 40 max. One idea per sentence.
 
-| Role | Hex | RGBColor | Usage |
-|---|---|---|---|
-| Cyan | `#00C2DE` | `(0x00,0xC2,0xDE)` | Active tab, primary accent headers, highlights |
-| Light Cyan | `#B2EBF2` | `(0xB2,0xEB,0xF2)` | Panel body bg paired with cyan/teal headers |
-| Teal | `#006D75` | `(0x00,0x6D,0x75)` | Footer strip, dark panels, section headers |
-| Orange | `#F26522` | `(0xF2,0x65,0x22)` | Interactive elements, callouts, CTAs, 2nd cycle |
-| Light Orange | `#FFDAB9` | `(0xFF,0xDA,0xB9)` | Panel body bg paired with orange headers |
-| Brown/Rust | `#8B2500` | `(0x8B,0x25,0x00)` | 3rd color-cycle item, tertiary accent |
-| Light Rust | `#FFE0D0` | `(0xFF,0xE0,0xD0)` | Panel body bg paired with rust headers |
-| Red | `#ED1C24` | `(0xED,0x1C,0x24)` | Objectives badge 2 only — never for general use |
-| Dark Gray | `#636466` | `(0x63,0x64,0x66)` | Inactive tabs, subdued labels, body text on light bg |
-| Light Gray | `#F4F4F4` | `(0xF4,0xF4,0xF4)` | Slide/panel backgrounds, alternate row fills |
-| Code BG | `#1E1E1E` | `(0x1E,0x1E,0x1E)` | Dark terminal-style code block background |
-| Code FG | `#00C2DE` | `(0x00,0xC2,0xDE)` | Monospace code text on dark code blocks |
-| Green (Public) | `#007A33` | `(0x00,0x7A,0x33)` | `[Public]` label only |
-| Black | `#000000` | `(0x00,0x00,0x00)` | Title text, closing/title slide bg |
-| White | `#FFFFFF` | `(0xFF,0xFF,0xFF)` | Text on dark surfaces, slide background |
+**V9 — Slide Closing:** No closing summary sentence. VO ends when last OST bullet narrated.
 
-**Color-cycle sequence** for cards, tabs, numbered steps, summary rows:
-1. Cyan `#00C2DE` → body bg Light Cyan `#B2EBF2`
-2. Orange `#F26522` → body bg Light Orange `#FFDAB9`
-3. Rust `#8B2500` → body bg Light Rust `#FFE0D0`
-4. Teal `#006D75` → body bg Light Gray `#F4F4F4`
-5. Red `#ED1C24` → body bg Light Gray `#F4F4F4`
-6. Repeat from 1
+**V10 — KC 4-Block VO:** (1) Correct answer stated. (2) Why it is correct. (3) Same explanation + "Refer to '[slide title]' slide." (4) "Why don't we give it another shot?"
 
-**Never use plain `#EEEEEE` gray as a panel background.** Use `#F4F4F4` for neutral panels. Use the light tinted bg (`#B2EBF2`, `#FFDAB9`, `#FFE0D0`) to visually pair with the header color of the same panel.
+#### OST Rules 1-14
 
-Never use colors outside this palette for backgrounds, shapes, or borders.
+**Rule 1 — Bullet style:** Noun/gerund/verb phrases only. Never full sentences with subject-verb-object.
 
-**Typography:**
+**Rule 2 — Depth:** Primary: 3-7 words. Sub-bullets: 2-5 words. Max 2 indent levels. No periods.
 
-| Element | Font | Size | Style |
-|---|---|---|---|
-| Slide title | Arial | 28pt | Bold — fixed, never shrinks |
-| Body / bullets | Arial | 18pt | Regular (reduce to 16pt → 14pt if overflow) |
-| Code / commands | Courier New | 18pt | Regular (reduce to 16pt → 14pt if overflow) |
-| Interactive heading (tab title, card title) | Arial | 18pt | Bold |
-| Interactive instruction | Arial | 14pt | Italic, orange |
-| Key point / callout bar text | Arial | 16pt | Bold or regular |
+**Rule 3 — Static slide patterns:** Pattern A (header+bullets), Pattern B (multi-panel parallel), Pattern C (two-column feature+description).
 
-**Line spacing — mandatory on every text element:**
-- Space before each paragraph: **6pt**
-- Space after each paragraph: **6pt**
-- Apply to all body text, bullets, and panel content — not to slide titles or single-line labels
-- In python-pptx, set this on every paragraph using `OxmlElement`:
-```python
-from pptx.oxml.ns import qn
-from lxml import etree
+**Rule 4 — Interactive hub:** Labels only on hub slide. Content lives in sub-states.
 
-def set_para_spacing(para, before_pt=6, after_pt=6):
-    pPr = para._p.get_or_add_pPr()
-    spcBef = etree.SubElement(pPr, qn('a:spcBef'))
-    spcPts = etree.SubElement(spcBef, qn('a:spcPts'))
-    spcPts.set('val', str(before_pt * 100))
-    spcAft = etree.SubElement(pPr, qn('a:spcAft'))
-    spcPts2 = etree.SubElement(spcAft, qn('a:spcPts'))
-    spcPts2.set('val', str(after_pt * 100))
-```
+**Rule 5 — Sub-state OST:** One component's full content per sub-state. 5-15 bullets.
 
-**Bullet style — round bullet only:**
-- Use the Unicode round bullet character `•` (•) as the bullet prefix for all bulleted text
-- Never use dashes, arrows, or other characters as bullets
-- Never use PowerPoint's auto-bullet feature — add `• ` as a text prefix in the run instead
-- Sub-bullets use the same `•` with additional left indent, not a different character
+**Rule 6 — Diagram slides:** Labels only. VO carries all explanation.
 
-**Interactive instruction format** — bottom-left of the content area, **only on genuinely interactive slides:**
-- Orange italic 13pt Arial text with `ⓘ` prefix
-- Position: `left = MARGIN_L`, `top = CONTENT_B − 320 000`, `width = 5 000 000`, `height = 260 000 EMU`
-- Text by slide type:
-  - Tab slides → `"ⓘ  Click each tab to learn more"`
-  - Numbered step slides → `"ⓘ  Click each step to reveal"`
-  - KC / AYK slides → `"ⓘ  Select your answer"`
-  - Card-grid slides (interactive) → `"ⓘ  Select each card to explore"`
-- **ONLY add when the slide type is genuinely interactive** (tabs, numbered-step reveal, KC, branching). **NEVER add to static content slides** (two-panel, two-section, stacked-sections, hierarchy, plain text).
-- Implementation:
-```python
-def interactivity_hint(slide, text):
-    tb = slide.shapes.add_textbox(
-        Emu(MARGIN_L), Emu(CONTENT_B - 320000), Emu(5000000), Emu(260000))
-    p = tb.text_frame.paragraphs[0]
-    r = p.add_run(); r.text = text
-    r.font.name = "Arial"; r.font.size = Pt(13)
-    r.font.italic = True; r.font.color.rgb = ORANGE
-```
+**Rule 7 — Code slides:** Command block prominent + short context phrase. Never mixed in same text block.
 
-**Safe zones:**
-- Top margin: 0.4" (title area)
-- Left/right margins: 0.5"
-- Bottom: 0.35" (footer — copyright + AMD logo)
-- Content area: approximately 0.5" from title bottom to 0.4" above footer
+**Rule 8 — Objectives slide:** Fixed stem "After completing this module, you will be able to:" + Bloom's action-verb LOs, no period.
 
-#### Layout Decision Guide
+**Rule 9 — Summary slide:** Numbered rows, not bullets. One row per LO takeaway restated in applied terms.
 
-Read the content, understand what it is trying to teach, and invent the layout that makes that clearest.
+**Rule 10 — KC slide:** Question stem ending "?" + 4 parallel options, no periods. Multi-select: append "(Select all that apply)".
 
-**Questions to ask before designing each slide:**
-- What is the structural relationship between the content pieces? (parallel / sequential / hierarchical / contrasting / cause-effect)
-- How much content is there? (sparse → give it space and a strong visual; dense → chunk it, use interactivity, or split)
-- Is there a natural focal point — a key term, a diagram, a step, a decision?
-- What interaction does the annotation call for, if any?
+**Rule 11 — No LO tags on OST:** LO tags in notes pane only, never visible on slide body.
 
-**Design thinking by content shape — with implementation specs:**
+**Rule 12 — No callout shapes:** No Note:, Key Point:, Warning:, Tip: banners.
+
+**Rule 13 — No section dividers:** Transitions handled by VO opening pattern only. No dedicated section slides.
+
+**Rule 14 — Preserve slide markers:** Never remove Slide-N, Fully Shared Slide, Partially Shared Slide, Fade in Fade out, or Branching slide marker shapes.
+
+
+
+#### CONFIRMED WORKING BUILD APPROACH — USE THIS ONLY
+
+
+
+This approach was confirmed working after extensive testing on the AVB deck. Every previous approach failed for specific reasons documented below.
+
+**Template:** `C:\Users\mvlbnimi\.psas-ai\slai-installs\.claude\skills\amd-pptx-template\assets\AMD_Corp_Template_2_13_2026.pptx`
+
+**Layout:** `prs.slide_layouts[27]` (Blank — injects ZERO auto-shapes)
+
+**Reference build script:** `C:\Users\mvlbnimi\.psas-ai\shared\build_designed_CONFIRMED.py`
 
 ---
 
-**Numbered Steps** — use when content is a sequential procedure (3–8 steps)
+**THE FOUR RULES — all must be followed on every slide:**
 
-- Left column: circular badge (color-cycled fill, white step number, bold 22pt) — badge diameter = `CONTENT_H / n` capped at 440 000 EMU
-- Right column: full-width row panel (Light Gray `#F4F4F4` bg) containing step text
-- If step has a label + command, split row: left half = label text, right half = **dark terminal code block** (`#1E1E1E` bg, `#00C2DE` Courier New 13pt text)
-- Warning/tip callout below a specific step: Light Orange `#FFDAB9` bg strip, orange italic text with `⚠` prefix
-- Interactivity hint at bottom-left: `ⓘ  Click each step to reveal` in orange italic 13pt
-- Total height of all rows + gaps must fill ≥ 80% of `CONTENT_H`
-
----
-
-**Three-Card Horizontal** — use for 3 parallel concepts or comparisons
-
-- Cards span full `CONTENT_H`, equal widths, 80 000 EMU gap between
-- Header: 300 000 EMU tall, color-cycled fill, white bold 14pt title
-- Body: remaining height, matched light tint bg (`#B2EBF2` / `#FFDAB9` / `#FFE0D0`), round bullet `•` 14pt black, 6pt para spacing
-- Never use flat gray on all three cards — each card body must visually pair with its header color
-
----
-
-**Four-Card Grid (2×2)** — use for 4 parallel best-practice or concept groups
-
-- 2 columns × 2 rows, 80 000 EMU gap horizontal and vertical
-- Each card: color-cycled header 280 000 EMU tall, matched light tint body
-- Body text: round bullets `•` 13pt, 5pt para spacing
-- All 4 cards must reach the same bottom edge
-
----
-
-**Tab Slide** — use for 3+ named categories with substantial content per tab
-
-- Tab strip at `CONTENT_T`: equal-width tabs, height 300 000 EMU
-- Active tab: Cyan `#00C2DE` fill, white bold 13pt. Add orange underline rule (18 000 EMU) below active tab
-- Inactive tabs: Teal `#006D75` fill, white bold 13pt
-- Content panel below tabs: Light Gray `#F4F4F4` bg, all sections stacked with colored left-edge accent bars (14 000 EMU wide) matching tab color-cycle
-- Interactivity hint: `ⓘ  Click each tab to learn more` orange italic at bottom-left
-
----
-
-**Two-Panel Left/Right** — use for two distinct topic groups (e.g., CPU vs GPU, commands vs behaviors)
-
-- Each column = `(CONTENT_W − 140 000) / 2` EMU wide, 140 000 EMU gap
-- Left header: Teal `#006D75`, body: Light Cyan `#B2EBF2`
-- Right header: Orange `#F26522`, body: Light Orange `#FFDAB9`
-- If left column contains commands: use dark terminal code blocks (`#1E1E1E` bg, `#00C2DE` Courier New) for command names; description text below in teal 13pt
-- Both columns reach same bottom edge within 0.3" of `CONTENT_B`
-
----
-
-**Two Vertical Sections** — use when content splits into two clearly distinct halves (e.g., Why / How)
-
-- Top section: Teal header + Light Cyan body
-- Thin Cyan rule (20 000 EMU) as divider at midpoint
-- Bottom section: Cyan header + Light Cyan body
-- Each section: header 280 000 EMU, body fills remaining half-height
-- Round bullets `•` 15pt in body panels
-
----
-
-**Three Stacked Sections** — use for 3 conceptual categories that are not tabs
-
-- Each section: thin colored left-accent bar (18 000 EMU wide, full section height), color-cycled from palette
-- Section header: colored bold text directly on white (no fill rectangle behind header text) — 15pt bold in the section's accent color
-- Section body: Light tint bg rectangle (`#B2EBF2` / `#FFDAB9` / `#FFE0D0`), round bullets `•` 14pt
-- First section body may use `Courier New` 13pt teal for command-style content
-
----
-
-**Hierarchy / Flow** — use for hierarchical or pipeline relationships
-
-- Top: horizontal pill strip with N equally-sized boxes color-cycled, connected by narrow arrow rects (80 000 EMU wide, Gray `#636466`)
-- Below: two-column table — left col 28% width (Level labels, teal bold 14pt), right col 72% (descriptions, black 14pt). Header row: Teal `#006D75` fill, white bold. Alternating rows: Light Cyan `#B2EBF2` / White
-
----
-
-**AYK / KC Slide** — always this layout for Apply Your Knowledge slides
-
-- Full-width Teal `#006D75` header banner (500 000 EMU tall) with white bold 26pt title
-- Question stem: Arial 17pt black, below banner
-- Four option rows, full `CONTENT_W`: left letter-badge column (260 000 EMU wide, color-cycled Cyan/Orange/Rust/Teal), right option text panel (Light Gray `#F4F4F4` bg, 14pt black)
-- Option height: 430 000 EMU, gap 50 000 EMU
-- Interactivity hint: `ⓘ  Select your answer` orange italic at bottom-left
-- No [Public] label on AYK slides (header banner replaces the chrome top zone)
-
----
-
-**Title Slide** — always this layout
-
-- Black background (`#000000`)
-- Thin vertical Cyan accent bar left edge (60 000 EMU wide, positioned at MARGIN_L, 1 200 000–5 200 000 EMU vertical)
-- Course title: white Arial 40pt bold, right of bar
-- Subtitle / module label: Cyan italic 16pt below title
-- AMD wordmark bottom-right: white bold 22pt
-- Teal footer strip (same as content slides)
-
----
-
-**Closing Slide** — always this layout
-
-- Black background
-- Thin Cyan horizontal rule at vertical center (full width, 12 000 EMU tall)
-- `AMD` wordmark centered above rule: white bold 60pt
-- `together we advance_` tagline below rule: Cyan 20pt centered
-
----
-
-- *A main concept with supporting details* → anchor the concept visually — a banner bar, a large shape, a bold callout — and subordinate the details around it.
-- *An image or diagram with explanatory text* → give the visual primary prominence.
-- *Excess content flagged as fade-in/fade-out or split* → two slides with identical titles and matching visual design.
-- *A learner choice / branching scenario* → a clean, minimal slide: two or three equal cards centered on a neutral background.
-- *A popup* → the base slide carries the main content plus a clearly visible, clickable button (orange, labeled). The popup slide is the next slide: popup-style framing, image or diagram on one side, content on the other, key point at the bottom.
-
-**Things that are always true regardless of layout chosen:**
-- Every slide needs at least one visual element (shape, color panel, icon, diagram, infographic). Plain white with text is never acceptable.
-- Visual hierarchy must be obvious at a glance.
-- Breathing room matters.
-- Consistency within a deck.
-
-**White space rules — mandatory:**
-
-- **Distribute elements across the full content area.** Left zone: ~45–50% of width. Right zone: ~45–50% of width.
-- **Minimum internal padding inside any panel or card:** 0.15" on all sides.
-- **Minimum gap between adjacent shapes:** 0.15" (≈137160 EMU).
-- **Vertical distribution:** If the content area height is H and you have N elements stacked, total element heights + gaps should use at least 80% of H.
-- **Before generating any slide, calculate the available height and width, divide by your number of elements, and size elements to fill the space proportionally.**
-- **Two-zone layouts (left + right):** size each zone so that both reach within 0.3" of the content area bottom.
-- **Code blocks and terminal outputs** must be sized to fill the right zone to at least 70% of the content area height.
-
-#### Key Point / Callout Bar
-
-When the content includes a summary sentence, key takeaway, or an annotation says "key point" or "note", place a full-width dark teal (`#006D75`) bar above the footer. Text inside: Arial 16pt bold white, centered.
-
----
-
-### Phase 4 — Step 4: Generate the Output
-
-Use **python-pptx directly** for all content slide construction. Do not use `pptx_create` for content slides — it cannot produce the precise shape positioning, color pairing, and code-block styling required by this spec. Use `pptx_create` only as a last resort for slides with no custom layout.
-
-**Python version:** Use the Python 3.12 interpreter at `C:\Users\mvlbnimi\AppData\Local\Programs\Python\Python312\python.exe` — this has `python-pptx` and `lxml` installed. Do NOT use the default `python3` shell command (which resolves to Python 3.14 and lacks these packages).
-
-**Run scripts via Bash:**
-```bash
-"/c/Users/mvlbnimi/AppData/Local/Programs/Python/Python312/python.exe" /path/to/script.py
-```
-
-**Slide dimensions:** 12 192 000 × 6 858 000 EMU (standard 16:9 widescreen)
-
-**Canonical layout constants (always use these):**
-
-```python
-SW, SH    = 12192000, 6858000
-MARGIN_L  = 457200     # 0.5" left/right margin
-TITLE_T   = 274638     # title top
-TITLE_H   = 514800     # title box height
-CONTENT_T = 903438     # TITLE_T + TITLE_H + 114960 gap
-FOOTER_T  = 6492240    # footer strip top
-FOOTER_H  = 365760     # footer strip height
-CONTENT_B = 6492240    # = FOOTER_T
-CONTENT_W = 11277600   # SW - 2*MARGIN_L
-CONTENT_H = 5588802    # CONTENT_B - CONTENT_T
-```
-
-**Standard blank slide:**
-```python
-def blank(prs):
-    return prs.slides.add_slide(prs.slide_layouts[6])  # blank layout, no master pollution
-```
-
-**Always start from `Presentation()` (empty)** — never load an existing PPTX as the base for content slides. Loading a reference file as base pollutes every slide with its slide master.
-
-For standard slides (Objectives, AYK, Summary, Disclaimer, Closing), use `pptx_copy_slides` to copy the matching slide from the standard template, then use python-pptx to fill in the content placeholders. Never recreate standard slides from scratch.
-
-**Saving output:** Save to `~/.psas-ai/shared/` (or user's selected folder) with filename:
-```
-<original-filename>_DESIGNED.pptx
-```
-Always save as a new version — never overwrite the Phase 3 file.
-
-**CRITICAL — Notes preservation (mandatory, non-negotiable):**
-
-Every slide in the Phase 4 output MUST carry the complete, unmodified speaker notes from the Phase 3 input. This includes SOURCE OST, SOURCE VO (struck through), SOURCE DIAGRAM, NEW VO, VISUAL DIRECTION, LO tag, and DEVELOPER NOTES blocks — the entire notes pane, character-for-character.
-
-Implementation in python-pptx:
-```python
-from pptx.util import Pt
-from pptx.oxml.ns import qn
-from lxml import etree
-import copy
-
-def copy_notes(src_slide, dst_slide):
-    """Copy the full notes pane from src_slide to dst_slide."""
-    src_notes = src_slide.notes_slide
-    dst_notes = dst_slide.notes_slide
-    # Clear existing text in dst notes body
-    src_txBody = src_notes.notes_text_frame._txBody
-    dst_txBody = dst_notes.notes_text_frame._txBody
-    # Replace dst txBody content with src
-    for child in list(dst_txBody):
-        dst_txBody.remove(child)
-    for child in src_txBody:
-        dst_txBody.append(copy.deepcopy(child))
-```
-
-Call `copy_notes(src_slide, dst_slide)` for every slide after building the output deck. If using `pptx_copy_slides`, the notes are carried automatically — verify they arrived and are not blank before saving.
-
-**Never leave notes blank on any slide.** If a slide has no notes in the source, write `N/A` in the notes pane rather than leaving it empty.
-
----
-
-### Phase 4 — Step 5: QA
-
-After generating, run a programmatic notes check, then do a visual QA pass in PowerPoint.
-
-**Programmatic notes check (mandatory — run before saving):**
+**Rule 1 — AMD Corporate Template as base:**
 ```python
 from pptx import Presentation
-prs = Presentation(output_path)
-all_ok = True
-for i, slide in enumerate(prs.slides):
-    notes = slide.notes_slide.notes_text_frame.text.strip()
-    if not notes:
-        print(f"FAIL Slide {i+1}: EMPTY NOTES"); all_ok = False
-    else:
-        print(f"OK   Slide {i+1}: {len(notes)} chars")
-print("All notes OK:", all_ok)
+TEMPLATE = r"C:\Users\mvlbnimi\.psas-ai\slai-installs\.claude\skills\amd-pptx-template\assets\AMD_Corp_Template_2_13_2026.pptx"
+prs = Presentation(TEMPLATE)
+BLANK = prs.slide_layouts[27]  # Blank — confirmed zero auto-shapes
+
+def ns(dark=False):
+    s = prs.slides.add_slide(BLANK)
+    s.background.fill.solid()
+    s.background.fill.fore_color.rgb = RGBColor(0,0,0) if dark else RGBColor(255,255,255)
+    return s
 ```
 
-**Visual QA checklist — check every slide in PowerPoint:**
-- [ ] `[Public]` green label present top-left on all content slides
-- [ ] Title: Arial 28pt bold, black, no colored bar behind it
-- [ ] Footer: solid teal `#006D75` strip, white copyright left, white AMD right
-- [ ] Panel body colors match their header color (cyan header → `#B2EBF2` body, orange header → `#FFDAB9` body, rust header → `#FFE0D0` body)
-- [ ] Code blocks use dark `#1E1E1E` background with `#00C2DE` Courier New text — never plain white boxes for code
-- [ ] Numbered step rows fill ≥ 80% of content height; badges are circular colored circles with white numbers
-- [ ] Tab slides: active tab cyan, inactive teal, orange underline on active tab
-- [ ] AYK slides: full-width teal header banner, full-width option rows with letter badges
-- [ ] Interactivity hint present on tab / numbered-step / KC slides; absent on all static slides
-- [ ] No `#EEEEEE` flat gray panels — use `#F4F4F4` or a matched tint
-- [ ] No text overflow or cutoff on any slide
-- [ ] No placeholder text left behind
-- [ ] **Speaker notes VERBATIM — SOURCE OST, SOURCE VO, NEW VO, VISUAL DIRECTION, LO, DEVELOPER NOTES all present and unmodified on every slide. Zero notes blank.**
-- [ ] Title slide: black bg, cyan vertical bar, white title, cyan subtitle, teal footer
-- [ ] Closing slide: black bg, cyan horizontal rule, AMD wordmark, teal footer
+**Rule 2 — ALL rectangles before ALL textboxes on every slide:**
 
-Fix any failing items, then re-run the notes check before saving the final file.
+WRONG (text hidden behind panel):
+```python
+T(s, ...)  # textbox added first
+R(s, ...)  # rectangle added second — COVERS the textbox
+```
 
----
+CORRECT (text always on top):
+```python
+# Step 1: Add ALL rectangles first
+R(s, ML, CON_T, 5500000, 480000, TL)   # header panel
+R(s, ML, CON_T+480000, 5500000, 4900000, LC)  # body panel
+R(s, 0, FOO_T, SW, FOO_H, TL)          # footer
 
-### Phase 4 — Step 6: Respond to User
+# Step 2: Add ALL textboxes after
+T(s, ML, TIT_T, CON_W, TIT_H, "Title Text", sz=28, bold=True)
+T(s, ML+120000, CON_T+100000, 5280000, 320000, "Panel header", sz=14, bold=True, col=WH)
+T(s, ML+120000, CON_T+580000, 5280000, 740000, "• Bullet text", sz=14, col=BK)
+```
 
-After delivering the file, provide:
+**Rule 3 — NO XML manipulation:**
+Never use `etree` to manipulate shape XML (e.g. adding yellow fill via `etree.SubElement`). Use only:
+```python
+def T(s, l, t, w, h, text, sz=15, bold=False, col=BK, italic=False, align=1):
+    box = s.shapes.add_textbox(Emu(l), Emu(t), Emu(w), Emu(h))
+    tf = box.text_frame; tf.word_wrap = True
+    for i, raw in enumerate(text.split('\n')):
+        para = tf.paragraphs[0] if i==0 else tf.add_paragraph()
+        para.alignment = align
+        r = para.add_run()
+        r.text = raw; r.font.name = "Arial"; r.font.size = Pt(sz)
+        r.font.bold = bold; r.font.italic = italic; r.font.color.rgb = col
 
-1. **Output file path**
-2. **Slide map** — one line per slide: `Slide N | Title | Pattern used`
-3. **Design decisions** — brief note on any creative choices made
-4. **Content freeze confirmation** — confirm that zero content was changed
+def R(s, l, t, w, h, col):
+    shp = s.shapes.add_shape(1, Emu(l), Emu(t), Emu(w), Emu(h))
+    shp.fill.solid(); shp.fill.fore_color.rgb = col; shp.line.fill.background()
+```
 
----
+**Rule 4 — Helper functions must NOT mix R() and T():**
+Any helper function (like `chrome()`, `foot()`, `std_header()`) must call ONLY R() or ONLY T() — never both. Call all R-helpers first, then all T-helpers:
 
-### Phase 4 — Annotations to Watch For in Speaker Notes
-
-| Annotation | Priority | What to do |
-|---|---|---|
-| `VISUAL DIRECTION: <description>` | **Highest — always follow** | Design the slide exactly as described. This is the ID author's explicit layout intent. |
-| "Tab", "tabs", "click each tab" | High | Tab interactivity (vertical or horizontal) |
-| "Branching", "learner chooses" | High | Branching slide |
-| "Popup", "click to reveal", "click the button" | High | Popup pattern |
-| "Fade in", "fade out", "split slide" | High | Two slides with identical title |
-| "Clickable cards", "click each card" | High | Card grid with CTA |
-| "Accordion" | High | Vertical tab pattern |
-| No annotation | — | Static design — use your own layout judgment based on content structure |
-
-**Important:** `VISUAL DIRECTION:` is a design brief, not content. Do not copy it into the output slide body. It lives in speaker notes only, and you carry the full speaker notes (including this line) forward unchanged into the output.
-
----
-
-### Phase 4 — AMD Brand Icons & Images
-
-**Icons — Location:** `~/.psas-ai/shared/amd-brand-icons/AMD_BrandIcons_V5 2025_Full Set/<IconName>/Digital/`
-
-Each icon folder contains:
-- `*_RGB_Wht.png` — white version → use on colored/dark backgrounds
-- `*_RGB_Blk.png` — black version → use on white/light backgrounds
-
-Use `_Wht.png` on colored/dark shapes. Use `_Blk.png` on white or light backgrounds.
-
-**AMD Stock Images — Location:** `~/.psas-ai/shared/amd-images/Images/<Category>/`
-
-Categories: Aerospace and Defense, AI Image, Automotive, Broadcast and ProAV, Data Center & Cloud Computing, Emulation & Prototyping, Healthcare & Science, Industrial & Vision, Multi-Story Car Storage, PC & Gaming, Robotics, Supercomputing and Research Solutions, Technology Backgrounds, Telco & Networking, Test & Measuremnt, Wind Turbine & Solar Panels, Wired & Wireless.
-
-Match the category to the slide's subject domain. Always pick from this library — never reference external images.
+```python
+# CORRECT pattern per slide:
+s = ns()
+# --- ALL RECTS ---
+R(s, ...)  # panel 1
+R(s, ...)  # panel 2
+R(s, 0, FOO_T, SW, FOO_H, TL)  # footer rect
+# --- ALL TEXT ---
+T(s, ML, 80000, ..., "[Public]", ...)
+T(s, ML, TIT_T, ..., "Slide Title", ...)
+T(s, ML, CON_T, ..., "Bullet 1", ...)
+T(s, ML, FOO_T+60000, ..., "Copyright...", ...)  # footer text
+```
 
 ---
 
-### Phase 4 — AMD Color Cycling Sequence
+**Why other approaches failed:**
 
-| Position | Header color | Body bg color |
-|---|---|---|
-| 1st | Cyan `#00C2DE` | Light Cyan `#B2EBF2` |
-| 2nd | Orange `#F26522` | Light Orange `#FFDAB9` |
-| 3rd | Rust `#8B2500` | Light Rust `#FFE0D0` |
-| 4th | Teal `#006D75` | Light Gray `#F4F4F4` |
-| 5th | Red `#ED1C24` | Light Gray `#F4F4F4` |
-| 6th+ | Repeat from 1st | Repeat from 1st |
-
-Apply this cycle to: card headers, tab headers, numbered-step badge colors, summary row badges, and section accent bars.
+| Approach | Why it failed |
+|---|---|
+| `Presentation()` blank base | Inherits AMD dark master — black text invisible |
+| EDF-SB01 as base | Dark master — black text invisible |
+| Layout 7 (Title Only) | Injects Title placeholder that covers content |
+| Any textbox before its covering rectangle | Rectangle renders on top of textbox in PowerPoint |
+| `etree` XML manipulation of shapes | Breaks z-order; causes rendering failures |
+| Helper functions mixing R() and T() | R() in helper called after T() in main = wrong order |
 
 ---
 
-## Tool Stack
+**Output file naming:**
+- Phase 3 blueprint: `[filename]_Phase3_SB.pptx`
+- Phase 3 designed output: `[filename]_Phase3_SB_DESIGNED.pptx` (same file, designed version)
 
-Phase 1 & 2: Read/Write/Edit/Bash, JSON indexes (layout/icon/image).
-Phase 3: `pptx_create` MCP tool (primary PPTX builder), `pptx_read`, `pptx_thumbnail` for QA. No external network calls required at runtime.
-Phase 4: `pptx_read`, `pptx_copy_slides`, `pptx_create`, `pptx_to_pdf`, `pdf_to_images`, `pptx_thumbnail` for visual QA; python-pptx via Bash for precise shape positioning, colors, and formatting.
+**Output path:** Same folder as the Phase 1 working copy.
+
+Tell the user the file path when done.
+
+
+
+
+
+#### VISUAL DIRECTION Vocabulary and Layout Dispatcher
+
+The build engine reads the VISUAL DIRECTION field from each slide's Phase 3 notes pane
+and dispatches to the correct layout function. Every deck produces a different design
+based on its instructional content — not a repeated template.
+
+---
+
+### VISUAL DIRECTION Keyword → Layout Pattern Mapping
+
+The build engine scans VISUAL DIRECTION text for these keywords (case-insensitive):
+
+| Keyword(s) in VISUAL DIRECTION | Layout function dispatched |
+|---|---|
+| `title slide` / `black background` / `module title` | `layout_title()` |
+| `objectives` / `lo badge` / `lo rows` | `layout_objectives()` |
+| `kc` / `apply your knowledge` / `kc slide` / `knowledge check` | `layout_kc()` |
+| `summary` / `numbered rows` / `summary rows` | `layout_summary()` |
+| `disclaimer` | `layout_disclaimer()` |
+| `closing` / `amd wordmark` / `together we advance` | `layout_closing()` |
+| `tab hub` / `tab interaction` / `click each tab` | `layout_tab_hub()` |
+| `tab sub-state` / `sub-state` / `tab content` | `layout_tab_substate()` |
+| `numbered steps` / `signal chain` / `sequential steps` | `layout_numbered_steps()` |
+| `four columns` / `four cards` / `four-card` / `4 columns` | `layout_four_cards()` |
+| `two panels` / `two-panel` / `left panel` / `right panel` | `layout_two_panels()` |
+| `three cards` / `three-card` / `3 cards` | `layout_three_cards()` |
+| `three stacked` / `stacked sections` / `three sections` | `layout_three_stacked()` |
+| `resources` / `next steps` / `three resources` | `layout_resources()` |
+| `visual preserved` / `source visual` / `preserved as-is` | `layout_visual_asis()` |
+| `branching` / `branching hub` | `layout_branching_hub()` |
+| `fade-in` / `fade in` / `hotspot` / `layered` | `layout_fade_in_hub()` |
+| `fade-in sub-state` / `fade sub-state` | `layout_fade_substate()` |
+| `static` / `static bullets` / `concept` / `definition` | `layout_static_bullets()` |
+
+**Fallback:** If no keyword matches → `layout_static_bullets()`
+
+---
+
+### Layout Functions — Required Parameters from Notes Pane
+
+Each layout function receives a dict parsed from the slide notes:
+
+```python
+slide_data = {
+    "title":   str,   # slide title
+    "ost":     list,  # DESIGNED OST bullets (preferred) or SOURCE OST (fallback)
+    "vo":      str,   # NEW VO field (narration)
+    "vd":      str,   # VISUAL DIRECTION field (drives layout choice)
+    "lo":      str,   # LO tag (e.g. "LO-1")
+    "dev":     str,   # DEVELOPER NOTES
+    "ai":      bool,  # True if [AI-SOURCED CONTENT] in notes
+    "vis":     bool,  # True if "preserved as-is" in VISUAL DIRECTION
+    "marker":  str,   # slide marker text (e.g. "Slide-4") or "" for sub-states
+    "p3_idx":  int,   # index into Phase 3 slides for notes copy
+}
+```
+
+**DESIGNED OST is the critical field the dispatcher reads.** The notes pane must include:
+
+```
+SOURCE OST: [raw original text]
+SOURCE VO: ~~[original speaker notes]~~
+SOURCE DIAGRAM: [None or description]
+---
+DESIGNED OST:
+[Redesigned bullet 1 — no prefix, no period]
+[Redesigned bullet 2]
+[Redesigned bullet 3]
+[Leave blank line between sections for multi-section layouts]
+NEW VO: [full narration script]
+VISUAL DIRECTION: [layout keyword + design intent]
+LO: [LO-N or N/A]
+DEVELOPER NOTES: [N/A or interaction details]
+```
+
+The dispatcher reads `DESIGNED OST:` first. If absent, falls back to `SOURCE OST:`. Never leave DESIGNED OST empty on content slides — it is the direct input to the layout function.
+
+**OST parsing:** The SOURCE OST field contains the raw bullet text. The build engine:
+1. Splits on newlines to get individual bullets
+2. Strips bullet prefixes (•, *, -) for clean text
+3. Passes as a list to the layout function
+
+---
+
+### Layout Functions Specification
+
+#### `layout_title(s, data)`
+- Dark background, cyan accent bar, white title
+- Subtitle from VO first sentence or "AMD Customer Training | [year]"
+
+#### `layout_objectives(s, data)`
+- Parse OST for LO list (lines after "you will be able to:")
+- One badge per LO — color-cycled [CY, RE, RU, TL, OR]
+- Badge number + LO text per row
+
+#### `layout_kc(s, data)`
+- Parse OST for question (first line) and 4 options (A/B/C/D lines)
+- Teal header banner
+- Color-coded option rows with letter badges
+
+#### `layout_summary(s, data)`
+- Parse OST for numbered takeaways (one per LO)
+- Color-cycled number badges + light gray body rows
+
+#### `layout_static_bullets(s, data, header_col=TL, body_col=BK)`
+- Section header in `header_col`
+- Bullet list below in `body_col`
+- Optional key point bar from last line if it starts with "AMD..."
+
+#### `layout_four_cards(s, data)`
+- Parse OST for 4 sections — each becomes a card
+- Color-cycled card headers [CY, OR, RU, TL]
+- Matched light body panels [LC, LO, LR, LG]
+- Card header = first line of each section, body = remaining lines
+
+#### `layout_two_panels(s, data)`
+- Parse OST for left group and right group (split at blank line or "vs" or midpoint)
+- Left: teal header + light cyan body
+- Right: teal header + teal dark body (for market figures) or orange header + light orange body
+
+#### `layout_three_cards(s, data)`
+- Parse OST for 3 sections
+- Three equal-width cards, color-cycled
+
+#### `layout_three_stacked(s, data)`
+- Parse OST for 3 sections
+- Thin left accent bar per section + light tint body panel
+
+#### `layout_numbered_steps(s, data)`
+- Parse OST for step list (numbered or sequential)
+- Color-cycled badge left + light gray row right per step
+- Key point bar from final "AMD..." line in OST
+
+#### `layout_tab_hub(s, data)`
+- Parse OST for tab names (lines after "Tab labels:" or comma-separated list)
+- Tab strip at content top — active tab CY, inactive TL
+- Visual note if "preserved as-is" in VD
+- Instruction text: "ⓘ  Click each tab to learn more"
+
+#### `layout_tab_substate(s, data)`
+- Parse OST for section header (first line) + bullets
+- Light gray content panel with cyan left accent bar
+- AI-sourced bar if `data["ai"]` is True
+
+#### `layout_resources(s, data)`
+- Parse OST for 3 resource groups (name + description per group)
+- Three color-coded cards [CY, OR, TL] with matched light body panels
+
+#### `layout_visual_asis(s, data)`
+- Amber note bar: "Source visual from input slide preserved as-is"
+- OST bullets below note bar
+- Optional key point bar
+
+#### `layout_branching_hub(s, data)`
+- Parse OST for category labels
+- Category labels as equal-width colored boxes
+- Instruction: "ⓘ  Click each option to explore"
+
+#### `layout_fade_in_hub(s, data)` and `layout_fade_substate(s, data)`
+- Hub: diagram area note + layer labels
+- Sub-state: layer content with left accent bar
+
+#### `layout_disclaimer(s, data)`
+- Full disclaimer text from OST
+- Standard white background
+
+#### `layout_closing(s, data)`
+- Dark background, cyan horizontal rule
+- AMD wordmark + tagline
+
+---
+
+### OST Parsing Helpers
+
+```python
+def parse_ost(ost_text):
+    """Parse SOURCE OST into clean bullet list."""
+    lines = [l.strip() for l in ost_text.split('\n') if l.strip()]
+    # Strip bullet prefixes
+    clean = []
+    for l in lines:
+        for prefix in ['• ', '* ', '- ', '• ']:
+            if l.startswith(prefix):
+                l = l[len(prefix):]
+                break
+        clean.append(l)
+    return clean
+
+def split_ost_sections(bullets, separator=None):
+    """Split OST bullets into logical sections at blank lines or separator."""
+    sections = []; current = []
+    for b in bullets:
+        if b == '' or (separator and separator.lower() in b.lower()):
+            if current: sections.append(current); current = []
+        else:
+            current.append(b)
+    if current: sections.append(current)
+    return sections
+
+def detect_vd_layout(vd_text):
+    """Read VISUAL DIRECTION and return layout function name."""
+    vd = vd_text.lower()
+    if any(k in vd for k in ['title slide', 'black background', 'module title']):
+        return 'title'
+    if any(k in vd for k in ['objectives', 'lo badge', 'lo rows']):
+        return 'objectives'
+    if any(k in vd for k in ['kc slide', 'apply your knowledge', 'knowledge check', 'kc layout']):
+        return 'kc'
+    if any(k in vd for k in ['summary', 'numbered rows', 'summary rows']):
+        return 'summary'
+    if 'disclaimer' in vd:
+        return 'disclaimer'
+    if any(k in vd for k in ['closing', 'amd wordmark', 'together we advance']):
+        return 'closing'
+    if any(k in vd for k in ['tab hub', 'click each tab']):
+        return 'tab_hub'
+    if any(k in vd for k in ['sub-state', 'tab content', 'tab 1', 'tab 2', 'tab 3']):
+        return 'tab_substate'
+    if any(k in vd for k in ['numbered steps', 'signal chain', 'sequential steps', 'step-by-step']):
+        return 'numbered_steps'
+    if any(k in vd for k in ['four columns', 'four cards', 'four-card', '4 columns', '4 cards']):
+        return 'four_cards'
+    if any(k in vd for k in ['two panels', 'two-panel', 'left panel']):
+        return 'two_panels'
+    if any(k in vd for k in ['three cards', 'three-card', '3 cards']):
+        return 'three_cards'
+    if any(k in vd for k in ['three stacked', 'stacked sections']):
+        return 'three_stacked'
+    if any(k in vd for k in ['resources', 'next steps', 'three resources']):
+        return 'resources'
+    if any(k in vd for k in ['preserved as-is', 'source visual', 'visual preserved']):
+        return 'visual_asis'
+    if 'branching' in vd:
+        return 'branching_hub'
+    if any(k in vd for k in ['fade-in', 'fade in', 'hotspot', 'layered reveal']):
+        return 'fade_in_hub'
+    if any(k in vd for k in ['fade sub-state', 'fade-in sub-state']):
+        return 'fade_substate'
+    # Default
+    return 'static_bullets'
+```
+
+---
+
+### Build Engine Main Loop
+
+```python
+def build_designed_sb(p3_pptx_path, out_path):
+    """
+    Main Phase 3 build engine.
+    Reads Phase 3 notes pane → dispatches to correct layout per VISUAL DIRECTION.
+    """
+    import re, copy
+    from pptx import Presentation
+
+    TEMPLATE = r"C:\Users\mvlbnimi\.psas-ai\slai-installs\.claude\skills\amd-pptx-template\assets\AMD_Corp_Template_2_13_2026.pptx"
+    p3prs = Presentation(p3_pptx_path)
+    prs   = Presentation(TEMPLATE)
+    BLANK = prs.slide_layouts[27]
+
+    LAYOUT_DISPATCH = {
+        'title':         layout_title,
+        'objectives':    layout_objectives,
+        'kc':            layout_kc,
+        'summary':       layout_summary,
+        'disclaimer':    layout_disclaimer,
+        'closing':       layout_closing,
+        'tab_hub':       layout_tab_hub,
+        'tab_substate':  layout_tab_substate,
+        'numbered_steps':layout_numbered_steps,
+        'four_cards':    layout_four_cards,
+        'two_panels':    layout_two_panels,
+        'three_cards':   layout_three_cards,
+        'three_stacked': layout_three_stacked,
+        'resources':     layout_resources,
+        'visual_asis':   layout_visual_asis,
+        'branching_hub': layout_branching_hub,
+        'fade_in_hub':   layout_fade_in_hub,
+        'fade_substate': layout_fade_substate,
+        'static_bullets':layout_static_bullets,
+    }
+
+    for idx, p3_slide in enumerate(p3prs.slides):
+        # Parse notes
+        notes = get_notes(p3_slide)
+        data  = parse_slide_data(notes, idx)
+
+        # Detect layout from VISUAL DIRECTION
+        layout_key = detect_vd_layout(data['vd'])
+
+        # Create new blank slide
+        s = prs.slides.add_slide(BLANK)
+        s.background.fill.solid()
+        s.background.fill.fore_color.rgb = RGBColor(255,255,255)
+
+        # Dispatch to correct layout function
+        LAYOUT_DISPATCH[layout_key](s, data)
+
+        # Copy Phase 3 notes verbatim
+        copy_notes(s, p3_slide)
+
+        print(f"S{idx+1} [{layout_key}]: {data['title'][:40]}")
+
+    prs.save(out_path)
+    return out_path
+```
+
+
+
 
