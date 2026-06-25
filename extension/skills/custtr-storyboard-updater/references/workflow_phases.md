@@ -4,31 +4,26 @@
 
 This workflow has 5 phases. Phases 1-4 run before any deck mutation. Do not skip phases or reorder them.
 
-### Parallelism Rules
+### Parallelism Guidance
 
-Some phases are independent and SHOULD run concurrently to reduce wall-clock time and token cost. The following parallelism opportunities are safe — they share no mutable state and their outputs are consumed only by later phases.
+Parallelism is a performance option, not a correctness rule. Use concurrent tool calls or subagents for expensive independent retrieval, rendering, or file analysis only when outputs are independent and shared reasoning context is not harmed.
 
-**Parallel group 1 — Phase 1.5 || Phase 2:**
-After Phase 1 completes, Phase 1.5 (speaker notes extraction) and Phase 2 (source collection) may run concurrently. Phase 1.5 reads only the deck PPTX. Phase 2 queries only MCP servers and user-provided documents. Neither writes to the other's output files. Launch both immediately after Phase 1 finishes.
+Good candidates:
+- Phase 1.5 speaker-notes extraction can run while source collection starts.
+- Independent source searches can run concurrently when their query intent is already clear.
+- Phase 5A and Phase 5B can run concurrently only when new slides do not depend on inspecting `updated_base.pptx`.
 
-**Parallel group 2 — Phase 2 MCP queries:**
-Within Phase 2, all MCP queries are independent: NABU queries (x3 minimum), Confluence search, and JIRA search read from separate servers and write to separate source inventory entries. Launch all MCP queries concurrently using parallel tool calls (Agent tool or concurrent Bash calls). Write each query result to `source_inventory.json` as it returns — do not accumulate all results in context before writing. If compaction hits mid-Phase-2, re-read `source_inventory.json` to see which queries have already been saved, then continue from where you left off.
-
-**Parallel group 3 — Phase 3 concept decomposition:**
-Within Phase 3, concept decomposition (Rule 31) for each source delta is independent — analyzing delta A does not require results from delta B. When multiple deltas exist, decompose them concurrently. The structural parity check (step 7) depends on all decompositions being complete.
-
-**Parallel group 4 — Phase 5A || Phase 5B:**
-After Phase 4 (plan approval), Phase 5A (apply existing-slide edits) and Phase 5B (create additions deck) may run concurrently. Phase 5A reads the original deck and writes `updated_base.pptx`. Phase 5B reads only the plan and writes additions PPTX files. Within Phase 5B, two sub-pipelines may also run concurrently: `create_additions_deck.py` (diagram layouts -> `additions.pptx`) and `create_marp_additions.py` (MARP-eligible layouts -> `marp_additions.pptx`). Neither modifies the other's output. Phase 5C (merge) depends on all completing successfully.
+Avoid parallelism for tightly coupled semantic work such as story modeling, source-to-claim entailment, concept decomposition, and plan authoring unless the deck is large and the artifact boundaries are explicit. Subagents do not inherit parent context and must receive exact schema and source instructions.
 
 **Must remain sequential:**
 - Phase 2.5 (coverage gaps) depends on both Phase 1 output AND Phase 2 output — cannot start until both are done.
 - Phase 3 depends on Phase 1.5 (speaker notes) AND Phase 2.5 — cannot start until both are done.
 - Phase 5A.1 (post-apply check) must run after Phase 5A, before Phase 5C.
-- Phase 5C (merge) must wait for Phase 5A.1 and both Phase 5B sub-pipelines (5B.1 and 5B.2).
+- Phase 5C (merge) must wait for Phase 5A.1 and the LLM-authored additions deck when new slides are planned.
 
-**Quality invariant:** Parallelism does not change what runs — only when. Every phase, gate, and check still executes exactly as specified. No phase may be skipped because another phase is running concurrently.
+**Quality invariant:** Parallelism never substitutes for LLM judgment or mechanical validation. If coordination overhead would increase error risk, run sequentially.
 
-### Phase 1. Extract
+### Phase 1. Extract and Author Story Model
 
 Run:
 
@@ -41,7 +36,21 @@ python3 "$SKILL/scripts/storyboard_update.py" \
 
 (`$SKILL` and `$DECK` must be set — see "Running Scripts -> Setup" below.)
 
-This creates `<deck_dir>/<deck_stem>/.storyboard_update/` with deck extraction, `story_model.json`, and a starter `update_plan.json`.
+This creates `<deck_dir>/<deck_stem>/.storyboard_update/` with deterministic deck extraction plus story-model authoring materials:
+
+- `deck_extract.json` — Python-extracted slide, text-shape, notes, relationship, and authoring-marker data.
+- `story_model_prompt.md` — instructions for the LLM story-model authoring pass.
+- `story_model_scaffold.json` — heuristic starter data. It is not authoritative.
+
+The workflow then stops until the LLM authors `story_model.json` using `references/story_model_guide.md`. Run:
+
+```bash
+python3 "$SKILL/scripts/validate_story_model.py" \
+  --deck-extract "$WORK/deck_extract.json" \
+  --story-model "$WORK/story_model.json"
+```
+
+Only after validation passes may the workflow continue to Phase 1.5, Phase 2, stale-term authoring, or mechanical scans. `story_model.json` captures instructional meaning and source-research hypotheses only; it must not contain source-backed clears, findings, or update actions.
 
 ### Phase 1.5. Extract Speaker Notes (mandatory — may run concurrently with Phase 2)
 
@@ -53,33 +62,50 @@ python3 "$SKILL/scripts/extract_speaker_notes.py" \
 
 Dumps verbatim speaker notes from every slide to a JSON keyed by `slide_number`. Required input for any `notes_update` action's `old_speaker_notes` field. See "Speaker-Notes Ground Truth & Diff Semantics".
 
-### Phase 2. Source Collection (mandatory — cannot be skipped — may run concurrently with Phase 1.5)
+### Phase 2. Source Collection (mandatory — cannot be skipped)
 
-Query MCP servers for the deck's topic area:
+Collect sources to cover the deck's claim clusters, not to satisfy fixed channel counts. The LLM chooses the relevant channels: NABU, Confluence/Atlassian, JIRA, Web Search, Vivado documentation, user-provided PDFs/docs, or other authoritative material.
 
-- **NABU**: Search for the deck topic, key components mentioned in slides, and the target version. Look for technical specs, feature changes, deprecations, new capabilities.
-- **NABU (portfolio-scope blocks)**: For every slide classified as an SoC overview, block diagram, or processing system diagram (typically 15+ shapes), extract the named functional blocks that are NOT the deck's primary topic (e.g. in a memory deck: PCIe, OCM, APU, RPU, security, clocking). Issue at least one batch query covering these blocks: *"What changed in [target generation] for [block1], [block2], [block3]?"* Record which blocks were queried and which returned no changes. This query is mandatory per Rule 39 — a portfolio-scope slide cannot be cleared without it.
-- **Confluence/Atlassian**: Search for internal documentation, release notes, known issues, training material updates related to the deck's subject.
-- **JIRA**: Search for relevant tickets — bugs reported against features covered in the deck, feature requests, completed work items for the target version.
-- **Web Search**: At least 2 queries using the `WebSearch` tool — (1) the deck's primary technology + target generation (e.g. "AMD Versal Gen 2 memory controller"), (2) specific technical features or protocols covered in the deck (e.g. "LPDDR5X CXL 3.1 specifications"). Web search surfaces public datasheets, product briefs, application notes, and conference presentations that may not be in NABU or Confluence. Particularly valuable for cross-referencing specs, finding updated bandwidth/frequency figures, and catching publicly announced changes not yet in internal docs. Record results as `SRC-WEB-NN` entries in `source_inventory.json`.
-- **Vivado Doc Search**: At least 2 queries using the `vivado_doc_search` tool — (1) the deck's primary IP or technology (e.g. "DDR5 memory controller", "AXI NoC"), (2) target-generation architecture or feature changes (e.g. "Versal Gen 2 processing system"). Searches official Xilinx/AMD documentation including UG/PG guides, product pages, and technical wikis. Record results as `SRC-VDOC-NN` entries in `source_inventory.json`.
+Source sufficiency requirements:
+
+- Every major claim cluster and every source-backed finding must cite at least one authoritative source entry.
+- Prefer internal or official AMD/Xilinx sources when available. Use public web sources for public specs, datasheets, or cross-checks when they materially improve evidence.
+- Portfolio-scope slides still need adjacent-domain review, but the LLM may batch queries and document why a block is unaffected or out of scope.
+- Record attempted but unavailable channels in `source_inventory.json` with rationale. Do not run ritual searches merely to satisfy a number.
 
 Incorporate user-provided inputs: PDFs, docs, links, notes, constraints.
 
 Build a `source_inventory` documenting what was queried, what was found, and what was unavailable. Save it to `.storyboard_update/source_inventory.json`.
 
+Build `reference_extract.json` from the source results before Phase 2.5. Each entry must contain verbatim source text that can support later `quoted_source` fields:
+
+```json
+{
+  "entries": [
+    {
+      "source_id": "SRC-NABU-01",
+      "section": "Release notes / feature delta",
+      "text": "Verbatim source passage copied from the authoritative result.",
+      "claim_keys": ["PCIe Gen 6", "64 GT/s"]
+    }
+  ]
+}
+```
+
+Every `quoted_source` in `verification_report.json` must be a literal case-insensitive substring of one of these `text` fields. If a required source cannot be fetched, record the attempted query in `source_inventory.json` and escalate the missing evidence to the user; do not fabricate `reference_extract.json` passages.
+
 **Gate**: Present the source inventory to the user before proceeding. If no MCP sources were queried, explain why and get explicit user approval to continue without them.
 
-### Phase 2.5. Coverage Gap Detection & Recursive Source Gathering (mandatory)
+### Phase 2.5. Advisory Coverage Lint & Targeted Source Gathering
 
 ```bash
-python <skill_dir>/scripts/detect_source_gaps.py \
+python3 <skill_dir>/scripts/detect_source_gaps.py \
   --deck-extract <work_dir>/deck_extract.json \
   --reference-extract <work_dir>/reference_extract.json \
   --output <work_dir>/coverage_gaps.json
 ```
 
-For every slide whose factual claims are not covered by `reference_extract.json`, run a targeted source-gathering sub-loop (NABU / Confluence / JIRA / web / user docs) until every claim maps to >=1 source or the gap is escalated to the user. Cap at 1 round per slide — after one round, batch-escalate all remaining unresolved gaps to the user in a single summary rather than looping further. Audit may not advance to Phase 3 while `coverage_gaps.json` has unresolved entries. See "Recursive Source Gathering (Phase 2.5)".
+`detect_source_gaps.py` emits advisory claim-token lint signals. Token overlap is not proof that a source supports a claim, and missing token overlap is not proof that no source exists. Use the output as search guidance, then let the LLM disposition each signal as supported, contradicted, insufficiently sourced, irrelevant mention, or intentionally out of scope. Audit may advance when the LLM-authored verification artifacts provide source-backed dispositions, even if the advisory lint file still contains signals.
 
 ### Phase 3. Cross-Validation Audit (mandatory — cannot be skipped)
 
@@ -123,7 +149,7 @@ This is a **shape-level, two-axis, every-slide-covered** audit. Every shape on e
 > ```
 > `new_slide_candidate` findings require 7 extra fields:
 > `concept`, `why_existing_slide_update_is_insufficient`, `insert_after_slide`,
-> `learning_goal`, `flow_dependencies`, `recommended_layout`, `visual_intent`
+> `learning_goal`, `flow_dependencies`, `visual_intent`, `qa_expectations`
 >
 > **`cross_validation_report.json`**
 > ```
@@ -181,16 +207,14 @@ This is a **shape-level, two-axis, every-slide-covered** audit. Every shape on e
 > **Per-type fields:**
 > | Type | Key fields | Wrong names (rejected) |
 > |------|-----------|----------------------|
-> | `update_existing` | `slide`, `edits[]` with `match_text` / `replacement_text` | `old_text`, `new_text` |
-> | `fragment_replace` | `slide`, `find_fragment` / `replace_fragment` | `find`, `search`, `replace` |
+> | `update_existing` | `slide_number`, top-level `match_text` / `replacement_text`, or `replacements[]` | `slide`, `edits`, `old_text`, `new_text` |
+> | `fragment_replace` | `slide_number`, `find_fragment` / `replace_fragment` | `slide`, `find`, `search`, `replace` |
 > | `notes_update` | `slide_number`, `old_speaker_notes`, `notes_changes[]` with `match_fragment` / `replacement_fragment`, `ost_reviewed` | `old`, `new`, `match`, `replacement`, `speaker_notes` |
-> | `add_new_slide` | `insert_after_slide` (NOT `slide_number`), `slide_layout`, `title`, `learning_goal`, `why_this_slide_exists`, `what_customer_should_understand`, `speaker_notes`, layout data field | `body`, `content`, `slide_number` |
-> | `knowledge_check_update` | `slide_number`, `edits[]` | `speaker_notes` (use `notes_changes`) |
+> | `add_new_slide` | `insert_after_slide` (NOT `slide_number`), `title`, `learning_goal`, `why_this_slide_exists`, `what_customer_should_understand`, `visible_content_summary`, `visual_approach`, `speaker_notes`, `qa_expectations` | `slide_number`; do not rely on fixed renderer routing |
+> | `knowledge_check_update` | `slide_number`, top-level `match_text` / `replacement_text`, plus `notes_changes[]` if feedback notes change | `edits`, `speaker_notes` |
 > | `remove_or_deprecate` | `slide_number` | — |
 >
-> **Layout → data-field map** (no `body` or `content` — ever):
-> `comparison_table` → `table`, `block_diagram` → `diagram`, `ascii_diagram` → `ascii_art`,
-> `two_column` → `columns`, `key_takeaway` → `statement`, `cards` → `cards`
+> **New-slide authoring:** No fixed layout → data-field map exists. Describe the intended visible content and visual approach; the LLM chooses the PowerPoint construction method after studying the deck.
 >
 > **`ost_reviewed`** (required on every `notes_update`):
 > - `"consistent"` + non-empty `ost_review_note`
@@ -220,7 +244,7 @@ This is a **shape-level, two-axis, every-slide-covered** audit. Every shape on e
 > 5. Every `quoted_source` is ≥30 chars and is a literal substring of `reference_extract` corpus
 > 6. Every action has `source_basis` (non-empty array)
 > 7. Every `notes_update` has `ost_reviewed`
-> 8. No `body` field on any `add_new_slide` action — use the layout data field instead
+> 8. Every `add_new_slide` action has visible content summary, visual approach, QA expectations, and speaker notes; no fixed renderer field is required
 
 ---
 
@@ -235,7 +259,7 @@ A slide cannot be "cleared" until it has been examined against both axes. Auditi
 
 You are auditing this deck because it is **probably wrong** — the target generation has changed, and slides that were correct for the previous generation may now be incomplete, misleading, or stale. Your default stance is that every slide needs updating until you can prove otherwise with source-backed reasoning.
 
-Before clearing ANY slide, you must complete all four steps of this reasoning chain. Skipping steps or substituting mechanical scan results for reasoning is a Rule 38 violation.
+Before clearing ANY slide, you must complete all four steps of this reasoning chain. Skipping steps or substituting mechanical scan results for reasoning is a Rule 39 violation.
 
 **Step 1 — Identify content generation.** What generation does this slide's content belong to? Look at the specific products, IP versions, protocol revisions, and feature sets described. A slide about "CPM5 PCIe Gen 5 controller" is Gen 1 content. A slide about "DDR5 register map" may be generation-agnostic — but you must determine that, not assume it.
 
@@ -267,7 +291,7 @@ Cite `source_ids` for every change you identify. If you cannot cite a source, yo
 **Mandatory mechanical step — Stale-term scan (script-driven, not prose-driven):**
 
 ```bash
-python <skill_dir>/scripts/stale_term_scan.py \
+python3 <skill_dir>/scripts/stale_term_scan.py \
   --deck-extract <work_dir>/deck_extract.json \
   --stale-terms <work_dir>/stale_terms.json \
   --output-json <work_dir>/stale_term_scan.json \
@@ -276,18 +300,58 @@ python <skill_dir>/scripts/stale_term_scan.py \
 
 This runs a literal, case-insensitive, word-boundary substring scan of every token in `stale_terms.json` against every shape and every speaker-notes block in `deck_extract.json` (group-nested shapes included). Hits inside `skip_if_preceded_by` / `skip_if_followed_by` context windows are skipped; hits on slides listed in `intentionally_kept.on_slides` for that token are also dropped. Every surviving hit becomes a candidate finding for Axis B. Resolution for each hit is one of: (a) update via a plan action, (b) add the slide to `intentionally_kept` for that token with a slide-specific justification, or (c) explicitly clear the slide in `cross_validation_report.json` with a reason that mentions the token or location.
 
+**Mandatory mechanical step — Stale-hit reconciliation:**
+
+After `stale_term_scan.json` is written and before the Phase 3 checkpoint, reconcile every surviving hit:
+
+1. Load `stale_term_scan.json`.
+2. For each hit, confirm one of:
+   - `verification_report.json` has a finding on the same slide that names the hit token or its exact shape text/location.
+   - `update_plan.json` has an action tied to that finding.
+   - `stale_terms.json` has an `intentionally_kept` entry for that token and slide.
+   - `cross_validation_report.json` explicitly clears the slide with a reason naming the token or location and citing `source_ids`.
+3. Record total stale hits and reconciled stale hits in the Phase 3 checkpoint.
+
+Do not rely on a generic `slides_explicitly_cleared` row for any slide with a surviving stale-term hit. A clear such as "slide checked against target deltas" is not sufficient unless it names the hit token or location and explains why that hit is intentionally retained.
+
 **Mandatory mechanical step — Scope-consistency scan:**
 
 ```bash
-python <skill_dir>/scripts/scope_consistency_scan.py \
+python3 <skill_dir>/scripts/scope_consistency_scan.py \
   --deck-extract <work_dir>/deck_extract.json \
   --stale-terms <work_dir>/stale_terms.json \
   --output <work_dir>/scope_consistency.json
 ```
 
-This flags slides that combine a portfolio-scope phrase (from `stale_terms.portfolio_scope_phrases`) with a stale-token specific from `stale_terms.stale_terms[].token`. Every finding must be either fixed in the plan or explicitly cleared with a reason.
+This flags slides that combine a portfolio-scope phrase (from `stale_terms.portfolio_scope_phrases`) with a stale-token specific from `stale_terms.stale_terms[].token`. Every signal must be dispositioned by the LLM: confirmed as a finding, addressed by a plan action, explicitly cleared with source-backed rationale, or marked intentionally out of scope.
 
-Both scans are run automatically by `storyboard_update.py --mode audit-plan`; you do not need to invoke them manually unless you are running the workflow in pieces.
+**Mandatory mechanical step — Intra-slide consistency scan (Rule 35):**
+
+```bash
+python3 <skill_dir>/scripts/consistency_scan.py \
+  --deck-extract <work_dir>/deck_extract.json \
+  --output <work_dir>/consistency_scan.json
+```
+
+This detects near-miss technical-token variants *within a single slide* — the class of bug that mechanical stale-term scanning and topic-pretty per-slide audits both miss. The canonical example shipped in a real run: a callout said `A78AE`, a diagram label said `A78E`, and the notes said `A78AE`. The stale-term scan did not fire (`A78E` ≠ `A78AE` and neither is a generation-delta token), and the slide was batch-cleared as "already the target generation", so the one-letter label typo shipped.
+
+The scan flags two distinct tokens on the same slide only when they differ by an **internal letter edit** (insert/delete/substitute) within a 2-character distance. Tokens that differ only by digits (e.g. `CPM5` vs `CPM6`, `DDR4` vs `DDR5`, `A72` vs `A78`) are legitimate generation siblings and are **not** flagged; prefix/suffix variants (e.g. `LPDDR5` vs `DDR5`) are not flagged either. A small curated list of common misspellings is emitted as `advisory: true` signals.
+
+Every non-advisory violation must be reconciled before the pre-plan gate passes: confirmed as a verification finding, addressed by a plan action, or explicitly cleared in `cross_validation_report.json` with a reason that names one of the implicated tokens (e.g. "`A78E` is an intentional shorthand for `A78AE` on this slide"). `audit_gate.py` rejects any unreconciled violation. Advisory typo signals surface as warnings.
+
+All three scans are run automatically by `storyboard_update.py --mode audit-plan`; you do not need to invoke them manually unless you are running the workflow in pieces.
+
+**Mandatory LLM step — Proofreading & consistency pass (Rule 35):**
+
+The scans above are deterministic backstops; they only catch near-miss letter typos and known misspellings. They cannot catch a *semantic* inconsistency ("the diagram shows 3 cores but the bullet says quad-core"), a contradiction across slides ("slide 8 says 64 GT/s, slide 23's knowledge-check answer still says 32 GT/s"), awkward grammar, or a wrong-but-correctly-spelled term. That is the LLM's job, and it must be an explicit, named deliverable — not an implicit hope folded into the per-slide audit (which is exactly what got skipped when the `A78AE`/`A78E` typo shipped).
+
+After the per-slide audit and the mechanical scans, author **`proofread_review.json`** (schema: `references/artifact_schemas.md`). In this pass you:
+
+1. **Disposition every non-advisory `consistency_scan.json` signal.** For each, record `confirmed_finding` (it is a real typo/mismatch — also raise a finding/action/clear), or `rejected_lint` / `intentionally_kept` / `out_of_scope` with a note (a legitimate scanner false positive, e.g. two genuinely distinct SKUs). This is the sanctioned way to dismiss a false positive — do not fabricate a clear to silence the scan.
+2. **Read every slide deck-wide for the issues the script cannot find:** spelling (beyond the curated list), grammar and clarity in OST and notes, intra-slide term consistency (diagram labels vs bullets vs notes), and cross-slide consistency (specs, figures, knowledge-check answers, terminology, capitalization). List each as an `issues[]` entry with `severity: "fix"` or `"advisory"`.
+3. Every `severity: "fix"` issue must be turned into a finding/plan action/clear; `audit_gate.py` warns at pre-plan and hard-fails at pre-execute if a `fix` issue is left unaddressed.
+
+`audit_gate.py` requires `proofread_review.json` to exist and to cover every slide at both stages. Treat it as the intelligent half of Rule 35; the deterministic scan is the floor that guarantees the obvious near-miss can never silently ship even if this pass is shallow.
 
 > **TRAP — A clean scan is not a pass signal.**
 > 0–3 stale-term hits means the mechanical scan found few keyword matches.
@@ -295,10 +359,10 @@ Both scans are run automatically by `storyboard_update.py --mode audit-plan`; yo
 > is too narrow, or that the most important gaps are structural (missing slides for a variant)
 > rather than terminological. When stale-term hits are low:
 > - Re-examine `stale_terms.json` — does it cover all product variants in the deck?
-> - Run `build_parity_matrix.py` to check variant coverage before concluding anything.
+> - Use `build_parity_matrix.py` as optional advisory lint if product variants are central to the deck.
 > - Complete concept decomposition regardless of hit count.
 >
-> Proceeding to plan authoring without concept decomposition and parity check after a
+> Proceeding to plan authoring without concept decomposition and source-backed coverage review after a
 > clean scan is the most common cause of missed structural gaps. `audit_gate.py` will
 > refuse to advance until `concept_decomposition.json` is present in the work directory.
 
@@ -347,45 +411,36 @@ Both scans are run automatically by `storyboard_update.py --mode audit-plan`; yo
    - Cross-reference hits against existing findings from the per-slide audit. Any hit not already covered by a finding or plan action is a NEW finding that must be added to `verification_report.json`.
    - Common examples: a slide that teaches the Gen 2 value (slide 8: "OCM 2 MB") while another slide still shows the Gen 1 value (slide 4: "256 KB"). The per-slide audit may clear slide 4 because its primary topic is the SoC overview, but the delta-tracing sweep catches the stale "256 KB" across the entire deck.
 
-   This step is enforced by Rule 40. Skip it only if zero source deltas identify changed specifications (rare — document why).
+   This step is enforced by Rule 41. Skip it only if zero source deltas identify changed specifications (rare — document why).
 
 7. **Concept decomposition (mandatory — after delta-tracing sweep, before parity matrix)**
 
-   For each source delta in `source_inventory.json`, decompose into teachable concepts per Rule 31. Record the decomposition in a `concept_decomposition` array inside `verification_report.json`:
+   For each source delta in `source_inventory.json`, decompose into teachable concepts per Rule 31. Author a standalone **`concept_decomposition.json`** in the work directory (schema: `references/artifact_schemas.md` — do not embed this array in `verification_report.json`).
 
    ```json
-   "concept_decomposition": [
-     {
-       "parent_delta": "CPM6 added to Versal Premium Gen 2",
-       "source_id": "SRC-WEB-02",
-       "concepts": [
-         {
-           "concept": "CPM6 controller architecture",
-           "independently_teachable": true,
-           "current_coverage": "absent",
-           "adequate": false,
-           "finding_id": "NS-01"
-         },
-         {
-           "concept": "CXL 3.1 protocol and device types",
-           "independently_teachable": true,
-           "current_coverage": "absent",
-           "adequate": false,
-           "finding_id": "NS-03"
-         },
-         {
-           "concept": "GTM2 transceiver family",
-           "independently_teachable": false,
-           "current_coverage": "notes mention on slide 8",
-           "adequate": true,
-           "finding_id": null
-         }
-       ]
-     }
-   ]
+   {
+     "schema_version": "1.0",
+     "deck": "<deck filename>",
+     "source_deltas": [
+       {
+         "delta_id": "D1",
+         "description": "CPM6 added to Versal Premium Gen 2",
+         "source_ids": ["SRC-WEB-02"],
+         "teachable_concepts": [
+           {
+             "concept": "CPM6 controller architecture",
+             "current_coverage": "none",
+             "adequate": false,
+             "recommended_action": "add_new_slide",
+             "target_slides": []
+           }
+         ]
+       }
+     ]
+   }
    ```
 
-   Feed the decomposition into the parity matrix: every concept marked `independently_teachable: true` + `adequate: false` becomes a `new_slide_candidate` finding in the verification report. This step runs BEFORE the structural parity check so the parity matrix includes concepts discovered through decomposition, not just variants visible from slide titles.
+   Feed the decomposition into LLM-authored concept coverage decisions. A concept marked `adequate: false` with `recommended_action: add_new_slide` is a strong candidate for a `new_slide_candidate` finding, but the LLM must still decide whether a new slide, existing-slide update, or explicit out-of-scope rationale is correct.
 
 8. **Structural parity check** — After completing the per-slide audit, identify every parallel concept group in the deck (variants of the same category taught at different depths). For each group, compare the depth of coverage across variants. Build a parity matrix. Examples across different deck types:
 
@@ -413,7 +468,7 @@ Both scans are run automatically by `storyboard_update.py --mode audit-plan`; yo
    | RPU     | 10, 11          | Yes                 | Yes           | slide 12       | ~150 words  |
    | PMC     | None            | No                  | Bullet only   | None           | ~40 words   |
 
-   Any variant with fewer dedicated slides or missing structural elements (diagram, features, assessment) compared to its peers is a `new_slide_candidate` finding. Exception: a variant may be intentionally excluded if a documented justification exists (e.g., "variant is under NDA", "variant is out of this deck's stated scope per objectives slide"). Absence of justification = automatic finding.
+   Any variant with fewer dedicated slides or missing structural elements (diagram, features, assessment) compared to its peers is a parity signal requiring LLM disposition. The LLM may confirm a `new_slide_candidate` finding, choose a smaller existing-slide update, or document an intentional exclusion (e.g., "variant is under NDA", "variant is out of this deck's stated scope per objectives slide"). Absence of justification is a plan-quality problem, not a script-authored semantic conclusion.
 
 **Bias-break rule:** Do not assume a slide is unchanged because its title is off-theme. PS, clocking, security, packaging, and summary slides change across generations even in topic-specific decks. The most common audit miss is leaving a Processing System slide at Gen 1 values inside a Memory or PCIe deck.
 
@@ -457,62 +512,99 @@ Validation rules — the plan is rejected and the audit must be re-run if **any*
 
 **Gate**: A report that clears every slide with no findings is a red flag — present it to the user for confirmation, because it almost certainly means the audit was superficial. Also flag the inverse: an audit that produces findings only on slides whose title matches the deck theme is a red flag for missing Axis B.
 
-**Final mechanical gate — `audit_gate.py`:**
+**Pre-plan mechanical gate — `audit_gate.py`:**
 
 ```bash
-python <skill_dir>/scripts/audit_gate.py --work-dir <work_dir> [--require-sources]
+python3 <skill_dir>/scripts/audit_gate.py --work-dir <work_dir> --stage pre-plan [--require-sources]
 ```
 
-Replaces the prose Validation Rules above with an executable gate. It asserts:
+Replaces the prose Validation Rules above with an executable audit-artifact gate before `update_plan.json` exists. It asserts:
 
-- All required artifacts exist: `deck_extract.json`, `source_inventory.json`, `cross_validation_report.json`, `stale_terms.json`, `stale_term_scan.json`, `scope_consistency.json`, `update_plan.json`.
+- All required audit artifacts exist: `deck_extract.json`, `source_inventory.json`, `reference_extract.json`, `verification_report.json`, `cross_validation_report.json`, `stale_terms.json`, `stale_term_scan.json`, `scope_consistency.json`, `consistency_scan.json`, `proofread_review.json`, and `concept_decomposition.json`.
 - `slides_examined == [1..N]`.
 - `slides_with_findings | slides_explicitly_cleared == [1..N]`.
 - Every `slides_explicitly_cleared` entry has a non-empty reason.
-- Every stale-term hit is addressed by a plan action or cleared with a reason that mentions the token or location.
-- Every scope-consistency finding is addressed or cleared.
-- The three mandatory sweeps (version / summary-recap / notes-structure) are clean. See "Mandatory Sweeps".
-- **Notes-OST coherence (Rule 34):** For every `notes_update` or `post_process_notes` action, key technical terms in the new/replacement notes text must appear in either the slide's existing OST shapes (from `deck_extract.json`) or a companion OST-level action (`update_existing`, `fragment_replace`) targeting the same slide. A notes action that introduces a term absent from the OST is a hard error.
-- **Intra-slide term consistency (Rule 35):** For every slide in `verification_report.json`, if any `intra_slide_inconsistency` finding exists, it must be addressed by a plan action or explicitly cleared with a reason.
-- With `--require-sources`: at least 3 NABU, 1 Confluence, 1 JIRA, 2 Web Search, 2 Vivado Doc Search queries in `source_inventory.json`.
+- Every stale-term hit is represented by a finding, an `intentionally_kept` entry, or cleared with a reason that mentions the token or location.
+- Every scope-consistency finding is represented by a verification finding or explicitly cleared.
+- **Intra-slide term consistency (Rule 35):** Every non-advisory violation in `consistency_scan.json` (mechanically detected near-miss token variant such as `A78AE`≠`A78E`) must be represented by a verification finding, addressed by a plan action, explicitly cleared with a reason that names one of the implicated tokens, or dismissed via a documented `proofread_review.json` disposition. Unreconciled violations are a hard failure. Any `intra_slide_inconsistency` finding the LLM authors directly is held to the same rule.
+- **Proofreading pass (Rule 35):** `proofread_review.json` must exist, list every slide in `slides_reviewed`, and disposition every non-advisory `consistency_scan.json` signal. Each `issues[]` entry marked `severity: "fix"` must map to a finding/action/clear (warning at pre-plan, hard error at pre-execute).
+- With `--require-sources`: source entries must be documented with source IDs; fixed channel counts are not enforced.
 
-Exit code 2 means the plan is rejected. **Do not advance to Phase 4 until `audit_gate.py` exits 0.**
+Exit code 1 or 2 means the audit is rejected. **Do not present the Phase 3 checkpoint until the pre-plan gate exits 0.**
+
+### MANDATORY USER CHECKPOINT — Phase 3 → Phase 4 Transition
+
+**Before writing `update_plan.json`, present the following to the user and wait for acknowledgement:**
+
+Write `$WORK/audit_summary.md` using `references/audit_summary_guide.md`, then present:
+
+1. **Stale terms authored**: count and list of stale terms from `stale_terms.json` — if fewer than 3 on a 15+ slide deck, explain why scope is intentionally narrow.
+2. **Concept decomposition summary**: number of source deltas, number of teachable concepts, and which are marked `adequate: false`.
+3. **Parity review results**: which product variants or peer concepts have comparable coverage, and how any advisory parity lint signals were dispositioned.
+4. **Total findings count**: number of findings from `verification_report.json`, broken down by type (stale_token, content_gap, new_slide_candidate, etc.).
+5. **Proofreading results**: from `proofread_review.json` — how many `consistency_scan.json` signals were confirmed vs dismissed as false positives, and the count of `fix` vs `advisory` proofreading issues (spelling, grammar, intra/cross-slide consistency).
+6. **Proposed plan scope**: 1-2 sentence summary of what the plan will contain.
+
+**Do NOT proceed to Phase 4 until the user explicitly acknowledges.** This checkpoint exists because the most common failure mode is a shallow audit that clears all slides with mechanical-only reasoning and produces a 1-action plan on a 30+ slide deck. The user is the last line of defense before plan authoring begins.
+
+### Phase 4.5 — Plan validation and pre-execute gate
+
+After writing `update_plan.json`, run:
+
+```bash
+python3 "$SKILL/scripts/validate_plan.py" \
+  --plan "$WORK/update_plan.json" \
+  --story-model "$WORK/story_model.json"
+
+python3 "$SKILL/scripts/audit_gate.py" \
+  --work-dir "$WORK" \
+  --stage pre-execute \
+  --require-sources
+```
+
+The pre-execute gate includes all pre-plan checks plus plan action mapping, source-basis checks, notes-structure checks, notes/OST coherence, `original_notes.json` matching for `notes_update`, stale-hit reconciliation against actions, new-slide schema checks, and advisory scope-depth diagnostics.
+
+### Phase 5 — XML/package-only final validation
+
+After Phase 5A applies existing-slide edits, Phase 5A.1 runs `post_apply_check.py`, and Phase 5C merges the final output, `validate_deck.py --require-fresh-merge is the final validation path`. Never open the final merged `.pptx` in PowerPoint, LibreOffice, COM automation, browser UI, or any presentation viewer for validation because the produced deck may require PowerPoint repair.
+
+Final validation must inspect the `.pptx` as a ZIP/OOXML package: run `validate_deck.py`, review `validation.json`, and inspect package parts when needed (`ppt/slides/*.xml`, `ppt/notesSlides/*.xml`, `ppt/_rels/*.rels`, `[Content_Types].xml`, presentation order, merge status sidecars). Check text presence, notes presence, shape geometry values, relationships, stale tokens, highlight placement, authoring markers, slide order, and package structure through XML/package inspection only.
 
 > **Before writing `update_plan.json` (Phase 4):** Review the **Part B action structs** in the
 > Phase 3 pre-flight checklist above. If spawning a subagent, paste the Part B struct definitions
 > and the Part C constraint quick-reference into the agent prompt — subagents do not inherit your
 > context and will invent wrong field names without it.
 >
-> **OST review is mandatory on every `notes_update` action.** For each `notes_update`, set `ost_reviewed` to `"consistent"` (with a non-empty `ost_review_note`) or `"companion_action_added"` (with a qualifying `update_existing` or `fragment_replace` action on the same slide also present in the plan). `validate_plan.py` rejects the plan if any `notes_update` is missing this field or the companion is absent. If the Phase 3 finding that prompted the notes update had `recommended_action_type` pointing to an OST edit, set `"companion_action_added"` — not `"consistent"`. See Rule 37.
+> **OST review is mandatory on every `notes_update` action.** For each `notes_update`, set `ost_reviewed` to `"consistent"` (with a non-empty `ost_review_note`) or `"companion_action_added"` (with a qualifying `update_existing` or `fragment_replace` action on the same slide also present in the plan). `validate_plan.py` rejects the plan if any `notes_update` is missing this field or the companion is absent. If the Phase 3 finding that prompted the notes update had `recommended_action_type` pointing to an OST edit, set `"companion_action_added"` — not `"consistent"`. See Rule 38.
 >
-> **Image-detection check before marking `ost_reviewed: "consistent"` (Rule 41).** Before writing `"consistent"`, count the meaningful text shapes on the slide in `deck_extract.json` (exclude title, authoring markers like "Fully Shared Slide", and slide-number labels like "Slide-24"). If the speaker notes describe a table, feature matrix, or multi-row comparison but the slide has fewer than 4 meaningful text shapes, the visible content is likely an embedded image. In this case, `ost_review_note` must: (a) acknowledge the image limitation explicitly, (b) list which concepts from the notes update cannot be verified against OST, and (c) include `manual_review_required` specifying what the image should be checked for. A generic note like "OST is consistent" on a slide with 0 meaningful text shapes is a Rule 41 violation.
+> **Image-detection check before marking `ost_reviewed: "consistent"` (Rule 42).** Before writing `"consistent"`, count the meaningful text shapes on the slide in `deck_extract.json` (exclude title, authoring markers like "Fully Shared Slide", and slide-number labels like "Slide-24"). If the speaker notes describe a table, feature matrix, or multi-row comparison but the slide has fewer than 4 meaningful text shapes, the visible content is likely an embedded image. In this case, `ost_review_note` must: (a) acknowledge the image limitation explicitly, (b) list which concepts from the notes update cannot be verified against OST, and (c) include `manual_review_required` specifying what the image should be checked for. A generic note like "OST is consistent" on a slide with 0 meaningful text shapes is a Rule 42 violation.
 
 ---
 
-## Recursive Source Gathering (Phase 2.5)
+## Advisory Source-Gap Lint (Phase 2.5)
 
-The Phase 2 source set is the *starting* corpus, not the final one. When the cross-validation audit reaches a slide whose claims aren't covered by the corpus, the planner must gather the missing sources before deciding the slide is clean. This replaces the previous "stale-term scan clean -> cleared" shortcut.
+The Phase 2 source set is the *starting* corpus, not the final one. `detect_source_gaps.py` can identify claim-token lint signals that may need more research, but it cannot decide whether a source supports a claim. The LLM-authored audit must judge entailment.
 
 ### Run after Phase 2, before Phase 3
 
 ```bash
-python <skill_dir>/scripts/detect_source_gaps.py \
+python3 <skill_dir>/scripts/detect_source_gaps.py \
   --deck-extract <work_dir>/deck_extract.json \
   --reference-extract <work_dir>/reference_extract.json \
   --output <work_dir>/coverage_gaps.json
 ```
 
-`coverage_gaps.json` lists, per slide, the factual claims (rate values, IP names, feature names, channel counts, protocol versions, recommendations) that have no matching entry in `reference_extract.json`, along with suggested source candidates.
+`coverage_gaps.json` lists advisory claim-token lint signals (rate values, IP names, feature names, channel counts, protocol versions, recommendations) that have no matching token in `reference_extract.json`, along with suggested source candidates.
 
-### Recursive fetch loop
+### Source follow-up loop
 
 For each entry in `coverage_gaps.json`:
 
 1. **Identify the authoritative source** — AMD PG (product guide) number, AMD docs.amd.com page, AMD product brief, PCIe/CXL/JEDEC/Arm spec document, internal Confluence page, JIRA issue, or Nabu corpus.
 2. **Fetch and ingest** — extend `reference_extract.json` with the new source chunk(s), each entry tagged with `source_id`, `section`, `claim_keys: [...]`, and `claim_supported: [...]`.
-3. **Re-run the audit on the affected slide** using the expanded corpus.
-4. **Repeat** until every claim on every slide maps to >=1 source — or the gap is escalated to the user as "could not find an authoritative source for X; please advise."
-5. **Cap at 1 round per slide.** After one round, batch-escalate all remaining unresolved gaps to the user in a single summary (slide number, claim, queries tried, why no source found). Runaway gathering is a sign the deck has off-scope content; escalate instead of looping.
+3. **LLM-disposition the signal** as supported, contradicted, insufficiently sourced, irrelevant mention, or intentionally out of scope.
+4. **Escalate unresolved evidence** to the user when an authoritative source cannot be found after a targeted search.
+5. **Cap at 1 follow-up round per slide.** After one round, batch-escalate remaining unresolved signals with slide number, claim token, queries tried, and why no source was found.
 
 ### Three-state clear semantics
 
@@ -520,8 +612,8 @@ For each entry in `coverage_gaps.json`:
 
 | State | Conditions | Promoted to plan? |
 |---|---|---|
-| `cleared_with_source` | Stale-term scan clean AND every claim maps to >=1 source AND no source contradicts any claim | Yes — listed in `slides_explicitly_cleared` with `source_ids: [...]` |
-| `cleared_no_source` | Stale-term scan clean BUT one or more claims have no source after recursive gathering | **No — must escalate to user; cannot auto-clear** |
+| `cleared_with_source` | LLM verifies the slide's claims against cited source text and no source contradicts the claim cluster | Yes — listed in `slides_explicitly_cleared` with `source_ids: [...]` |
+| `cleared_no_source` | One or more important claim clusters still lack authoritative support after targeted gathering | **No — must escalate to user; cannot auto-clear** |
 | `findings` | Source contradicts at least one claim, or new tech in module scope invalidates an existing answer/recap | Listed in `slides_with_findings` with at least one action in the plan |
 
 ### Schema additions
