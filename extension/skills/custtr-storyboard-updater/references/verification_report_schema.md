@@ -1,4 +1,8 @@
-# `verification_report.json` Schema
+# `verification_report.json` Schema (Legacy)
+
+`references/artifact_schemas.md` is the canonical schema reference for new runs.
+This file is retained only for older audits that still reference the legacy
+verification-report taxonomy. Do not use it when authoring new artifacts.
 
 `verification_report.json` is the source-backed audit contract for this skill.
 It replaces legacy token-list scanning. Every slide must have one row, and every row
@@ -94,8 +98,8 @@ Each candidate must include:
     "knowledge_checks_affected": [23],
     "summary_slides_affected": [38]
   },
-  "recommended_layout": "ascii_diagram",
   "visual_intent": "Show host, CPM6/CXL path, Type-3 memory device, and coherency/memory expansion relationship.",
+  "qa_expectations": ["Rendered slide has no text cutoffs or overlaps", "Visual style matches the surrounding section"],
   "quoted_source": "literal source text of at least thirty characters...",
   "source_id": "SRC-NABU-04",
   "recommended_action_type": "add_new_slide",
@@ -137,17 +141,19 @@ Depth tiers:
 - `mention_only` — appears in table row, bullet list, or speaker notes only
 - `absent` — not mentioned at all
 
-A `parity_violation: true` is an automatic finding that blocks plan approval unless
-explicitly justified with a documented reason (e.g., "variant is under NDA",
-"variant is out of deck scope per objectives slide").
+A `parity_violation: true` is an advisory signal that requires LLM disposition.
+The LLM may confirm it as a finding, address it with an existing-slide update,
+add a new-slide candidate, or explicitly justify exclusion (e.g., "variant is
+under NDA", "variant is out of deck scope per objectives slide").
 
 ## Concept Decomposition
 
-Every verification report must include a `concept_decomposition` array when source
-deltas introduce new capabilities. This array records how each delta was broken into
-independently teachable concepts (per Rule 31), ensuring that protocols, transceiver
-families, and other cross-category concepts are not silently absorbed into a parent
-slide's bullet list.
+> **Deprecated:** Author standalone **`concept_decomposition.json`** in the work directory.
+> Do not nest concept decomposition inside `verification_report.json`.
+> Schema: `references/artifact_schemas.md` (section `concept_decomposition.json`).
+> `audit_gate.py` requires the standalone file before pre-plan advance.
+
+The legacy embedded array below is retained for reference only when reading older work dirs:
 
 ```json
 {
