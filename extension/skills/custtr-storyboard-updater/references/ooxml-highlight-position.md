@@ -9,13 +9,9 @@ Use this reference only for **existing-slide edits**. Do not apply this edit-mar
 
 ## New Slides
 
-New slides must not have yellow-highlighted body text. Instead, add a compact top-right badge:
-
-- Text: `New Slide`
-- Fill: `#FFFF00` or AMD gold `#C1A968`
-- Text color: black / `tx1`
-- Placement: top-right safe margin, not overlapping title/classification text
-- Approximate size: 0.9–1.2 in wide by 0.25–0.35 in high
+New slides must not have yellow-highlighted body text. Add a badge or callout
+only if it fits the deck's authoring style and does not crowd the title,
+classification text, or slide number.
 
 ## Yellow Highlight Position
 
@@ -73,5 +69,5 @@ After marking changes:
 - Ensure every intended changed run contains `<a:highlight><a:srgbClr val="FFFF00"/></a:highlight>`.
 - Ensure every highlighted run has `<a:solidFill><a:schemeClr val="tx1"/></a:solidFill>` as the first fill element (no explicit white or `bg1` remains on highlighted runs).
 - Ensure non-highlighted runs are untouched — their original fill is preserved.
-- Ensure new slides have `New Slide` badges and no highlighted body text.
+- Ensure new slides have no highlighted body text; badges are optional and must match the deck style.
 
