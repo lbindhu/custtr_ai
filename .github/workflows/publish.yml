@@ -58,12 +58,18 @@ jobs:
 
       - name: Commit latest.json to main
         run: |
+          VERSION=${{ steps.ver.outputs.VERSION }}
+          REPO="${{ github.server_url }}/${{ github.repository }}"
+          DOWNLOAD="${REPO}/releases/download/v${VERSION}/custtr-ai-${VERSION}.vsix"
           git fetch origin main
+          git stash
           git checkout main
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          printf '{"version":"%s","downloadUrl":"%s","releaseNotes":"Release v%s"}\n' \
+            "$VERSION" "$DOWNLOAD" "$VERSION" > releases/latest.json
           git add releases/latest.json
-          git diff --staged --quiet || git commit -m "chore: update latest.json to v${{ steps.ver.outputs.VERSION }} [skip ci]"
+          git diff --staged --quiet || git commit -m "chore: update latest.json to v${VERSION} [skip ci]"
           git push origin main
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
