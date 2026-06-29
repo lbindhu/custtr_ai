@@ -136,7 +136,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             <span class="skill-card-name">${esc(s.displayName)}</span>
             ${s.version ? `<span class="skill-ver">v${esc(s.version)}</span>` : ''}
           </div>
-          ${s.description ? `<div class="skill-card-desc">${esc(s.description.split('.')[0].trim())}</div>` : ''}
+          ${s.description ? `<div class="skill-card-desc">${esc(s.description.split('.').slice(0, 2).join('.').trim() + '.')}</div>` : ''}
         </div>
         <div class="skill-card-actions">
           <button class="run-btn" title="Copy get-started command"
