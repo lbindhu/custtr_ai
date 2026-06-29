@@ -3,6 +3,8 @@ name: custtr-lab-doc
 description: >
   Generates AMD-style hands-on lab documents(.docm) that match the AMD training lab template structure and Word styles.
 
+---
+
 # AMD Lab Document Generator
 
 This skill produces `.docm` lab files that exactly match the AMD training lab
