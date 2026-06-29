@@ -1,0 +1,23 @@
+{
+  "skill_name": "custtr-board-ssh",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to connect to my board at 192.168.10.55, user is root, password is amd1234. What kernel is it running?",
+      "expected_output": "Skill prompts for or accepts connection details, runs 'uname -a' via SSH (using sshpass), shows raw output, and summarizes the kernel version in plain English.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "board ip is 10.0.0.42 login root/test123 — what PCI devices are showing up? especially looking for the GPU",
+      "expected_output": "Connects via SSH, runs 'lspci' and optionally filters for VGA/GPU entries, presents the device list and clearly identifies the GPU if found.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "ok connected already (192.168.1.100, root, pass=ryzen2024). run 'dmesg | grep -i amd' on the board and tell me if there are any errors",
+      "expected_output": "Runs the exact dmesg grep command via SSH, shows the output, and flags any error-level lines with an explanation.",
+      "files": []
+    }
+  ]
+}
