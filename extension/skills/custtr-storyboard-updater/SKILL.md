@@ -1,11 +1,7 @@
 ---
 name: custtr-storyboard-updater
 description: >
-  Audit and update AMD storyboard or training PowerPoint decks against current sources,
-  then produce a repair-resistant updated deck. Use for SB_Update-style deck refreshes,
-  storyboard modernization, release-version updates, source-backed content additions,
-  CPM/MDB/AI Engine/NoC/PMC or similar AMD training modules, and any request that asks
-  to audit, plan, update, remove, or add slides while preserving instructional flow.
+  Audits and updates AMD training decks against current product sources
 ---
 
 > **Canonical variant.** If multiple copies of this skill exist, the one at `$SKILL` (set during session setup) is authoritative. Do not mix scripts or references across variants.
