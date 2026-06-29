@@ -1,6 +1,6 @@
 ---
 name: custtr-mp4toscorm
-description: "Converts an MP4 video into a SCORM 1.2 package for LMS upload."
+description: "Converts an MP4 video into a SCORM-1.2 package for LMS upload."
 ---
 
 # MP4 to SCORM Conversion Skill
