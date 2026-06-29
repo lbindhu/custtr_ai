@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMD Lab Document Generator</title>
+<style>
+  :root {
+    --red: #ED1C24;
+    --teal: #007C97;
+    --dark: #1a1a1a;
+    --gray: #f4f4f4;
+    --border: #ddd;
+    --text: #222;
+    --light-teal: #e6f4f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #eaeaea;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--dark);
+    color: white;
+    padding: 18px 40px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
+  .amd-logo {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+  }
+  .amd-logo .amd { font-size: 26px; font-weight: 900; color: var(--red); letter-spacing: -1px; }
+  .amd-logo .tagline { font-size: 9px; color: #aaa; letter-spacing: 2px; margin-top: 2px; }
+  .divider { width: 1px; height: 36px; background: #444; }
+  header h1 { font-size: 17px; font-weight: 600; color: white; }
+
+  /* ── Main ── */
+  main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    width: 100%;
+    max-width: 640px;
+    overflow: hidden;
+  }
+
+  .card-top {
+    background: linear-gradient(135deg, var(--teal) 0%, #005f75 100%);
+    padding: 28px 32px;
+    color: white;
+  }
+  .card-top h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .card-top p { font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.5; }
+
+  .card-body { padding: 32px; }
+
+  /* ── URL input ── */
+  .field-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #555;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .url-wrap {
+    display: flex;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .url-wrap:focus-within { border-color: var(--teal); }
+  .url-icon {
+    background: var(--gray);
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    font-size: 18px;
+    border-right: 1px solid var(--border);
+    color: #888;
+  }
+  .url-wrap input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 13px 14px;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    color: var(--text);
+    background: white;
+  }
+  .url-wrap input::placeholder { font-family: Arial, sans-serif; color: #aaa; font-size: 13px; }
+
+  .hint { font-size: 11px; color: #888; margin-top: 8px; line-height: 1.5; }
+  .hint a { color: var(--teal); text-decoration: none; }
+  .hint a:hover { text-decoration: underline; }
+
+  /* ── Format toggle ── */
+  .format-section { margin-top: 28px; }
+  .format-options {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .format-option {
+    flex: 1;
+    position: relative;
+  }
+  .format-option input[type=radio] { display: none; }
+  .format-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 18px 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--gray);
+    text-align: center;
+  }
+  .format-option label:hover { border-color: var(--teal); background: var(--light-teal); }
+  .format-option input:checked + label {
+    border-color: var(--teal);
+    background: var(--light-teal);
+    box-shadow: 0 0 0 3px rgba(0,124,151,0.15);
+  }
+  .format-icon { font-size: 32px; line-height: 1; }
+  .format-name { font-size: 14px; font-weight: 700; color: var(--text); }
+  .format-desc { font-size: 11px; color: #777; line-height: 1.4; }
+  .format-option input:checked + label .format-name { color: var(--teal); }
+  .check-badge {
+    display: none;
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--teal);
+    color: white;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    font-size: 11px;
+    align-items: center; justify-content: center;
+  }
+  .format-option input:checked ~ .check-badge { display: flex; }
+
+  /* ── Lab number ── */
+  .extra-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 22px;
+  }
+  .extra-row .field { flex: 1; }
+  .extra-row input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .extra-row input:focus { border-color: var(--teal); }
+
+  /* ── Button ── */
+  .btn-generate {
+    margin-top: 28px;
+    width: 100%;
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 15px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: Arial, sans-serif;
+  }
+  .btn-generate:hover { background: #c0151b; }
+  .btn-generate:active { transform: scale(0.99); }
+  .btn-generate:disabled { background: #ccc; cursor: not-allowed; }
+
+  /* ── Output panel ── */
+  .output-panel {
+    display: none;
+    margin-top: 0;
+    border-top: 2px solid var(--border);
+  }
+  .output-panel.visible { display: block; }
+
+  .output-header {
+    background: #1a6b3a;
+    color: white;
+    padding: 14px 32px;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .output-body { padding: 24px 32px; }
+
+  .command-box {
+    background: #1e1e2e;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .command-box-header {
+    background: #2a2a3e;
+    color: #888;
+    font-size: 10px;
+    padding: 8px 14px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .cmd-copy {
+    background: var(--teal);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 3px 10px;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    font-weight: 600;
+  }
+  .cmd-copy:hover { background: #005f75; }
+  .command-box pre {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    padding: 14px 16px;
+    color: #cdd6f4;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.8;
+  }
+  .command-box pre .green { color: #a6e3a1; }
+  .command-box pre .blue { color: #89b4fa; }
+  .command-box pre .gray { color: #6c7086; }
+
+  .step-list { list-style: none; counter-reset: steps; }
+  .step-list li {
+    counter-increment: steps;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.5;
+  }
+  .step-list li::before {
+    content: counter(steps);
+    background: var(--teal);
+    color: white;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+
+  .btn-claude {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 13px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    margin-top: 6px;
+    transition: background 0.2s;
+  }
+  .btn-claude:hover { background: #005f75; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 11px;
+    color: #888;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1a6b3a; color: white;
+    padding: 10px 20px; border-radius: 6px;
+    font-size: 13px; font-family: Arial, sans-serif;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    z-index: 999; transform: translateY(60px); opacity: 0;
+    transition: all 0.3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* ── Spinner ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="amd-logo">
+    <span class="amd">AMD</span>
+    <span class="tagline">together we advance_</span>
+  </div>
+  <div class="divider"></div>
+  <h1>Lab Document Generator</h1>
+</header>
+
+<main>
+  <div class="card">
+    <div class="card-top">
+      <h2>Generate a Lab Document</h2>
+      <p>Paste a GitHub tutorial URL and choose your output format. The generator fetches the tutorial content, builds the AMD-formatted lab document, and delivers the file ready to open.</p>
+    </div>
+
+    <div class="card-body">
+
+      <!-- URL -->
+      <label class="field-label">GitHub Tutorial URL</label>
+      <div class="url-wrap">
+        <span class="url-icon">🔗</span>
+        <input type="text" id="tutorial-url"
+          placeholder="https://github.com/Xilinx/Vitis-Tutorials/tree/2025.2/AI_Engine_Development/..."
+          oninput="onUrlChange()">
+      </div>
+      <p class="hint">
+        Supported repositories: <a href="https://github.com/Xilinx/Vitis-Tutorials" target="_blank">Vitis-Tutorials</a>,
+        <a href="https://github.com/Xilinx/Embedded-Design-Tutorials" target="_blank">Embedded-Design-Tutorials</a>,
+        <a href="https://github.com/Xilinx/xup_fpga_vivado_flow" target="_blank">xup_fpga_vivado_flow</a>, and all Xilinx repos.
+      </p>
+
+      <!-- Format -->
+      <div class="format-section">
+        <label class="field-label">Output Format</label>
+        <div class="format-options">
+
+          <div class="format-option">
+            <input type="radio" name="fmt" id="fmt-docm" value="docm" checked>
+            <label for="fmt-docm">
+              <span class="format-icon">📄</span>
+              <span class="format-name">Word (.docm)</span>
+              <span class="format-desc">AMD-formatted macro-enabled Word document. Full styles, editable content.</span>
+            </label>
+            <span class="check-badge">✓</span>
+          </div>
+
+          <div class="format-option">
+            <input type="radio" name="fmt" id="fmt-pdf" value="pdf">
+            <label for="fmt-pdf">
+              <span class="format-icon">📕</span>
+              <span class="format-name">PDF</span>
+              <span class="format-desc">Print-ready PDF exported from the Word document. Fixed layout.</span>
+            </label>
+            <span class="check-badge">✓</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Extra options -->
+      <div class="extra-row">
+        <div class="field">
+          <label class="field-label">Lab Number</label>
+          <input type="number" id="lab-number" value="1" min="1" max="99">
+        </div>
+        <div class="field">
+          <label class="field-label">Version</label>
+          <input type="text" id="lab-version" value="2026.1" placeholder="2026.1">
+        </div>
+      </div>
+
+      <!-- Generate -->
+      <button class="btn-generate" id="gen-btn" onclick="generate()" disabled>
+        <span id="btn-icon">⚙</span>
+        <span class="spinner" id="spinner"></span>
+        <span id="btn-label">Paste a URL to continue</span>
+      </button>
+
+    </div><!-- card-body -->
+
+    <!-- Output -->
+    <div class="output-panel" id="output-panel">
+      <div class="output-header">✓ Ready — follow the steps below</div>
+      <div class="output-body">
+
+        <ul class="step-list" style="margin-bottom:20px">
+          <li>Copy the Claude Code command below and paste it into the Claude Code terminal.</li>
+          <li>Claude will fetch the tutorial, confirm it, download images, and build the lab document automatically.</li>
+          <li>The finished file will appear on your Desktop with the name shown.</li>
+        </ul>
+
+        <div class="command-box">
+          <div class="command-box-header">
+            Claude Code command
+            <button class="cmd-copy" onclick="copyCmd()">Copy</button>
+          </div>
+          <pre id="cmd-output"></pre>
+        </div>
+
+        <button class="btn-claude" onclick="copyCmd()">
+          📋 Copy Command to Clipboard
+        </button>
+
+      </div>
+    </div>
+
+  </div><!-- card -->
+</main>
+
+<footer>© 2026 Advanced Micro Devices, Inc. — AMD Customer Training</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+  function onUrlChange() {
+    const url = document.getElementById('tutorial-url').value.trim();
+    const btn = document.getElementById('gen-btn');
+    const label = document.getElementById('btn-label');
+    if (url.startsWith('http') && url.includes('github.com')) {
+      btn.disabled = false;
+      label.textContent = 'Generate Lab Document';
+    } else if (url === '') {
+      btn.disabled = true;
+      label.textContent = 'Paste a URL to continue';
+    } else {
+      btn.disabled = true;
+      label.textContent = 'Enter a valid GitHub URL';
+    }
+  }
+
+  function generate() {
+    const url    = document.getElementById('tutorial-url').value.trim();
+    const fmt    = document.querySelector('input[name=fmt]:checked').value;
+    const labNum = document.getElementById('lab-number').value || '1';
+    const ver    = document.getElementById('lab-version').value || '2026.1';
+
+    if (!url) return;
+
+    // Show spinner briefly
+    document.getElementById('btn-icon').style.display = 'none';
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('btn-label').textContent = 'Building command…';
+    document.getElementById('gen-btn').disabled = true;
+
+    setTimeout(() => {
+      document.getElementById('btn-icon').style.display = '';
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('btn-label').textContent = 'Generate Lab Document';
+      document.getElementById('gen-btn').disabled = false;
+
+      buildOutput(url, fmt, labNum, ver);
+    }, 600);
+  }
+
+  function buildOutput(url, fmt, labNum, ver) {
+    // Derive tutorial name from URL for desktop filename
+    const parts = url.replace(/\/$/, '').split('/');
+    const tutorialDir = parts[parts.length - 1] || 'lab';
+    const desktopName = tutorialDir.replace(/[^a-zA-Z0-9_\-]/g, '_');
+
+    const fmtFlag    = fmt === 'pdf' ? ' --pdf' : '';
+    const outputExt  = fmt === 'pdf' ? 'pdf' : 'docm';
+    const outputFile = `${desktopName}.${outputExt}`;
+
+    const claudePrompt = `create a new lab from ${url} --lab-number ${labNum} --version ${ver}${fmtFlag}`;
+
+    const cmdEl = document.getElementById('cmd-output');
+    cmdEl.innerHTML =
+      `<span class="gray"># Paste this into Claude Code (terminal or chat):</span>\n\n` +
+      `<span class="green">create a new lab from</span> <span class="blue">${escH(url)}</span>\n` +
+      ( fmt === 'pdf'
+        ? `<span class="gray">Output format: PDF  |  </span>`
+        : `<span class="gray">Output format: Word (.docm)  |  </span>`) +
+      `<span class="gray">Lab #${escH(labNum)}  |  Version ${escH(ver)}</span>\n\n` +
+      `<span class="gray"># The file will be saved to your Desktop as:</span>\n` +
+      `<span class="blue">${escH(outputFile)}</span>`;
+
+    window._claudeCmd = claudePrompt;
+
+    document.getElementById('output-panel').classList.add('visible');
+    document.getElementById('output-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    showToast('✓ Command ready — copy and paste into Claude Code');
+  }
+
+  function copyCmd() {
+    if (!window._claudeCmd) return;
+    navigator.clipboard.writeText(window._claudeCmd).then(() => {
+      showToast('📋 Copied to clipboard!');
+    });
+  }
+
+  function escH(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+</script>
+</body>
+</html>

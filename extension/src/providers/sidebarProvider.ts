@@ -54,6 +54,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         case 'openReadme':
           vscode.env.openExternal(vscode.Uri.parse('vscode:extension/custtr.custtr-ai'));
           break;
+        case 'openUrl':
+          vscode.env.openExternal(vscode.Uri.parse(msg.url));
+          break;
         case 'openSkill':
           vscode.workspace.openTextDocument(msg.path).then(doc =>
             vscode.window.showTextDocument(doc)
@@ -437,6 +440,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         <div class="header-brand-sub">AMD Customer Training</div>
       </div>
       <button class="readme-btn" onclick="send('openReadme')">README</button>
+      <button class="readme-btn" onclick="send('openUrl',{url:'https://forms.office.com/r/6MHckEM3pK'})">FEEDBACK</button>
     </div>
     <div class="version-row">
       <span>Installed</span>

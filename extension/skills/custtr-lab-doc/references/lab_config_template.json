@@ -1,0 +1,158 @@
+{
+  "_comment": "BASE TEMPLATE — always start every new lab from this file. Fill in the blanks; never remove structural keys.",
+
+  "title": "",
+  "shared": true,
+  "lab_number": 1,
+  "version": "2025.2",
+  "toc": true,
+
+  "abstract": [
+    "One paragraph describing the lab and what the user will accomplish.",
+    "This lab should take approximately XX minutes."
+  ],
+
+  "cloudshare_note": "You are provided with three attempts to finish a lab, where the time allotted to complete each lab is twice the expected completion time. Once the timer starts, you cannot pause the timer. Each lab attempt resets the previous attempt—your work from previous attempts is not saved.",
+
+  "objectives": [
+    "Understand the design architecture and parameters",
+    "Set up the Vitis 2025.2 environment",
+    "Objective 3",
+    "Objective 4",
+    "Objective 5"
+  ],
+
+  "introduction": [
+    "Background paragraph 1 — describe the technology and its relevance.",
+    "Background paragraph 2 — describe the design and targets.",
+    {"type": "bold_heading", "text": "Design Parameters"},
+    {
+      "type": "table",
+      "rows": [
+        ["Parameter", "Value", "Description"],
+        ["...", "...", "..."]
+      ],
+      "widths": [2200, 1800, 5360],
+      "header_centered": true
+    },
+    {"type": "bold_heading", "text": "Design Blocks"},
+    {
+      "type": "table",
+      "rows": [
+        ["Block", "Description"],
+        ["...", "..."]
+      ],
+      "widths": [2200, 7160],
+      "header_centered": true
+    },
+    {"type": "bold_heading", "text": "Nomenclature"},
+    "Formal nomenclature is used to explain how different arguments are used. The following are some of the more commonly used symbols:",
+    {
+      "type": "table",
+      "rows": [
+        ["Symbol", "Description", "Example", "Explanation"],
+        ["<text>", "Indicates a field", "cd <dir>", "<dir> represents the name of the directory. The < and > symbols are NOT entered. If the directory is XYZ, enter cd XYZ."],
+        ["[text]", "Indicates an optional argument", "ls [ | more]", "The bracketed portion is optional. ls alone lists files; ls | more paginates the output."],
+        ["|", "Indicates choices", "make TARGET=<aiesim | x86sim>", "You would enter either make TARGET=aiesim or make TARGET=x86sim."]
+      ],
+      "widths": [1200, 1800, 1800, 4560],
+      "header_centered": true,
+      "monospace_cols": [0, 2]
+    }
+  ],
+
+  "general_flow": [
+    "Step 1:\nSet Up the\nEnvironment",
+    "Step 2:\nReview Source\nFiles",
+    "Step 3:\nBuild &\nSimulate",
+    "Step 4:\nAnalyze\nResults"
+  ],
+  "general_flow_per_row": 4,
+
+  "steps": [
+    {
+      "title": "Step 1 Title",
+      "intro": "One sentence describing the goal of this step.",
+      "instructions": [
+        {"body_heading": "Understand [Topic]"},
+        {"continue": "Explanatory text — no step number, no command to execute."},
+
+        {"stepxx": "1-1", "text": "Main step action."},
+        {"stepxxx": "1-1-1", "text": "Sub-step instruction text."},
+        {"host_cmd": "command --flag argument"},
+        {"continue": "Note: Description of expected output or next action."},
+
+        {"stepxx": "1-2", "text": "Another main step."},
+        {"stepxxx": "1-2-1", "text": "Sub-step instruction."},
+        {"host_cmd": "another-command"},
+
+        {"question": "Question text here? Hint: Hint pointing to where to find the answer."}
+      ],
+      "outcome": "What the user should observe when this step is complete."
+    },
+    {
+      "title": "Step 2 Title",
+      "intro": "One sentence describing the goal of this step.",
+      "instructions": [
+        {"body_heading": "Understand [Topic]"},
+        {"continue": "Explanatory context for this step."},
+
+        {"stepxx": "2-1", "text": "Main step action."},
+        {"stepxxx": "2-1-1", "text": "Sub-step instruction."},
+        {"host_cmd": "command"},
+        {"continue": "Note: Expected output."}
+      ],
+      "outcome": "What the user should observe."
+    },
+    {
+      "title": "Step 3 Title",
+      "intro": "One sentence describing the goal of this step.",
+      "instructions": [
+        {"body_heading": "Understand [Topic]"},
+        {"continue": "Explanatory context for this step."},
+
+        {"stepxx": "3-1", "text": "Main step action."},
+        {"stepxxx": "3-1-1", "text": "Sub-step instruction."},
+        {"host_cmd": "command"},
+
+        {"stepxx": "3-2", "text": "Main step action."},
+        {"stepxxx": "3-2-1", "text": "Sub-step instruction."},
+        {"host_cmd": "command"},
+        {"continue": "Note: Expected output."},
+
+        {"question": "Question text here? Hint: Hint text."}
+      ],
+      "outcome": "What the user should observe."
+    },
+    {
+      "title": "Step 4 Title",
+      "intro": "One sentence describing the goal of this step.",
+      "instructions": [
+        {"body_heading": "Understand [Topic]"},
+        {"continue": "Explanatory context for this step."},
+
+        {"stepxx": "4-1", "text": "Main step action."},
+        {"stepxxx": "4-1-1", "text": "Sub-step instruction."},
+        {"host_cmd": "command"},
+
+        {"stepxx": "4-2", "text": "Main step action."},
+        {"stepxxx": "4-2-1", "text": "Sub-step instruction."},
+        {"continue": "Note: Expected output."}
+      ],
+      "outcome": "What the user should observe."
+    }
+  ],
+
+  "summary": "One paragraph summarizing what was accomplished — mention the tool, platform, what was built, and what was verified.",
+
+  "answers": [
+    {
+      "question": "Question text exactly matching the inline question.",
+      "answer": "Full answer text."
+    },
+    {
+      "question": "Second question text.",
+      "answer": "Full answer text."
+    }
+  ]
+}
