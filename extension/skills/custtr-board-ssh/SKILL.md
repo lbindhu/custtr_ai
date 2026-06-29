@@ -37,15 +37,15 @@ There are also helper scripts in the `scripts/` directory relative to this skill
 
 Use them like:
 ```bash
-bash "C:/Users/ssingams/.claude/skills/board-ssh/scripts/board_connect_test.sh" HOST USER PASSWORD
-bash "C:/Users/ssingams/.claude/skills/board-ssh/scripts/board_cmd.sh" HOST USER PASSWORD 'your command'
+bash "C:/Users/ssingams/.claude/skills/custtr-board-ssh/scripts/board_connect_test.sh" HOST USER PASSWORD
+bash "C:/Users/ssingams/.claude/skills/custtr-board-ssh/scripts/board_cmd.sh" HOST USER PASSWORD 'your command'
 ```
 
 ## Connection State
 
 At session start, check for a saved config:
 ```bash
-cat "C:/Users/ssingams/.claude/skills/board-ssh/board_config.json" 2>/dev/null
+cat "C:/Users/ssingams/.claude/skills/custtr-board-ssh/board_config.json" 2>/dev/null
 ```
 
 If it exists and looks recent, offer to reuse the host/user. Always re-ask for the password — don't store it.
@@ -61,7 +61,7 @@ After a successful connection, save to config:
 
 Write this with:
 ```bash
-cat > "C:/Users/ssingams/.claude/skills/board-ssh/board_config.json" << 'EOF'
+cat > "C:/Users/ssingams/.claude/skills/custtr-board-ssh/board_config.json" << 'EOF'
 {"host": "HOST", "user": "USER", "last_connected": "TIMESTAMP"}
 EOF
 ```
@@ -103,7 +103,7 @@ For questions outside this table, reason about what `/proc`, `/sys`, or standard
 
 When the user says "run X on the board" or pastes a command to execute, run it as-is:
 ```bash
-bash "C:/Users/ssingams/.claude/skills/board-ssh/scripts/board_cmd.sh" HOST USER PASSWORD 'USER_COMMAND'
+bash "C:/Users/ssingams/.claude/skills/custtr-board-ssh/scripts/board_cmd.sh" HOST USER PASSWORD 'USER_COMMAND'
 ```
 
 If the output will be large, add `| head -100` unless the user says they want everything.
