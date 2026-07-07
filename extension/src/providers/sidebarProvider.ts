@@ -63,6 +63,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           );
           break;
         case 'runSkill': {
+          vscode.env.clipboard.writeText(msg.trigger);
           const claudeTerminal = vscode.window.terminals.find(t =>
             t.name.toLowerCase().includes('claude')
           );
@@ -70,9 +71,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             claudeTerminal.show(true);
             claudeTerminal.sendText(msg.trigger, false);
           } else {
-            vscode.env.clipboard.writeText(msg.trigger).then(() => {
-              vscode.window.showInformationMessage(`Copied "${msg.trigger}" — no Claude Code terminal found, paste it manually.`);
-            });
+            vscode.window.showInformationMessage(`Copied "${msg.trigger}" — paste it into the Claude Code chat.`);
           }
           break;
         }
