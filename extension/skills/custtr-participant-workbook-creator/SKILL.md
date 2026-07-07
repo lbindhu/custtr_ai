@@ -1,6 +1,6 @@
 ---
 name: custtr-participant-workbook-creator
-description: "Combines ILT PowerPoint modules into a single participant workbook PDF."
+description: "Combines ILT PowerPoint modules into a single participant workbook PDF"
 ---
 
 <!-- psas-attribution:v2 -->

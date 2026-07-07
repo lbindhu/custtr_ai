@@ -1,6 +1,6 @@
 ---
 name: custtr-sb-cleanup
-description: "Strips comments, strikethrough, and authoring markup from SB decks."
+description: "Strips comments, strikethrough, and authoring markup from SB decks"
 ---
 
 # SB Cleanup

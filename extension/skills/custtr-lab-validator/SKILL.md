@@ -1,6 +1,6 @@
 ---
 name: custtr-lab-validator
-description: "Validates AMD training lab docx files by executing each step on a VM."
+description: "Validates AMD training lab docx files by executing each step on a VM"
 ---
 
 # Lab Validator Skill

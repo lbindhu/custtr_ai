@@ -1,7 +1,7 @@
 ---
 name: custtr-lab-doc
 description: >
-  Generates AMD-style hands-on lab documents(.docm) that match the AMD training lab template structure and Word styles.
+  Generates AMD-style hands-on lab documents(.docm) that match the AMD training lab template structure and Word styles
 
 ---
 

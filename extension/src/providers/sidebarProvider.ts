@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import * as https from 'https';
 import * as http from 'http';
-import * as fs from 'fs';
-import * as path from 'path';
 import { SkillManager, Skill } from './skillManager';
 
 interface LatestInfo { version: string; releaseNotes?: string; }
@@ -117,8 +115,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private _skillRow(s: Skill, showContribute: boolean): string {
-    const readmePath = path.join(s.skillPath, 'README.md');
-    const docPath = fs.existsSync(readmePath) ? readmePath : s.mdPath;
+    const docPath = s.docPath;
     const pathJson = esc(JSON.stringify(docPath));
     const nameJson = esc(JSON.stringify(s.name));
     const chatCmd = `/@${s.name}`;

@@ -1,6 +1,6 @@
 ---
 name: custtr-training-advisior
-description: "Recommends AMD courses and builds learning paths for any AMD product."
+description: "Recommends AMD courses and builds learning paths for any AMD product"
 ---
 
 # AMD Customer Education Training Advisor

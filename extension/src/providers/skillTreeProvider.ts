@@ -15,7 +15,7 @@ export class SkillTreeItem extends vscode.TreeItem {
     this.command = {
       command: 'custtr-ai.openSkill',
       title: 'Open Skill',
-      arguments: [skill.mdPath]
+      arguments: [skill.docPath]
     };
 
     this.iconPath = new vscode.ThemeIcon(

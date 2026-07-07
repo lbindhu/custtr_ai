@@ -8,6 +8,7 @@ export interface Skill {
   description: string;
   skillPath: string;
   mdPath: string;
+  docPath: string;
   version: string;
   type: 'custtr' | 'user';
 }
@@ -133,12 +134,16 @@ export class SkillManager {
       const mdContent = fs.readFileSync(mdPath, 'utf8');
       const description = this._parseDescription(mdContent);
 
+      const readmePath = path.join(skillPath, 'README.md');
+      const docPath = fs.existsSync(readmePath) ? readmePath : mdPath;
+
       skills.push({
         name: entry.name,
         displayName: entry.name,
         description,
         skillPath,
         mdPath,
+        docPath,
         version,
         type
       });

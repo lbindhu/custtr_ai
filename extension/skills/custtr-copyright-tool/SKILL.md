@@ -1,6 +1,6 @@
 ---
 name: custtr-copyright-tool
-description: "Adds or updates AMD copyright headers across source files."
+description: "Adds or updates AMD copyright headers across source files"
 ---
 
 # Copyright Disclaimer Adder Skill

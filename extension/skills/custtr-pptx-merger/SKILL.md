@@ -1,6 +1,6 @@
 ---
 name: custtr-pptx-merger
-description: "Merges or copies slides between PowerPoint files cleanly."
+description: "Merges or copies slides between PowerPoint files cleanly"
 ---
 
 # PPTX Slide Merger

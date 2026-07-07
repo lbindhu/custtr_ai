@@ -1,6 +1,6 @@
 ---
 name: custtr-vivado-pua
-description: 'Upgrades Vivado FPGA projects/designs from an earlier version to a later version.'
+description: 'Upgrades Vivado FPGA projects/designs from an earlier version to a later version'
 argument-hint: 'Provide source Vivado version, target Vivado version, and project path to upgrade'
 applyTo: '**'
 ---

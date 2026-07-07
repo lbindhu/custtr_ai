@@ -1,6 +1,6 @@
 ---
 name: custtr-sb-to-ilt
-description: "Converts a Storyboard deck into ILT format by removing interactive elements."
+description: "Converts a Storyboard deck into ILT format by removing interactive elements"
 ---
 
 # SB → ILT Converter

@@ -1,6 +1,6 @@
 ---
 name: "custtr-storyboard"
-description: "Creates a new SB taking script (PPT) as base by applying ID principles."
+description: "Creates a new SB taking script (PPT) as base by applying ID principles"
 ---
 
 # Customer Training Storyboard — 4-Phase Engine

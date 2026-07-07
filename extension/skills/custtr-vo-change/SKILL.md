@@ -1,6 +1,6 @@
 ---
 name: custtr-vo-change
-description: "Swaps the narrator voice in Articulate Storyline files via ElevenLabs."
+description: "Swaps the narrator voice in Articulate Storyline files via ElevenLabs"
   Also triggers when the user provides a .story file path and mentions ElevenLabs,
   a voice name, or asks to convert or update the narration.
   Always ask for the ElevenLabs API key at the start — never reuse one from memory.
