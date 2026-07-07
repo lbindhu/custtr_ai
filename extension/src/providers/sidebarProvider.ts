@@ -62,11 +62,20 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             vscode.window.showTextDocument(doc)
           );
           break;
-        case 'runSkill':
-          vscode.env.clipboard.writeText(msg.trigger).then(() => {
-            vscode.window.showInformationMessage(`Copied "${msg.trigger}" — paste it into the Claude Code chat.`);
-          });
+        case 'runSkill': {
+          const claudeTerminal = vscode.window.terminals.find(t =>
+            t.name.toLowerCase().includes('claude')
+          );
+          if (claudeTerminal) {
+            claudeTerminal.show(true);
+            claudeTerminal.sendText(msg.trigger, false);
+          } else {
+            vscode.env.clipboard.writeText(msg.trigger).then(() => {
+              vscode.window.showInformationMessage(`Copied "${msg.trigger}" — no Claude Code terminal found, paste it manually.`);
+            });
+          }
           break;
+        }
         case 'contributeSkill':
           vscode.commands.executeCommand('custtr-ai.contributeSkill', msg.skillName);
           break;
