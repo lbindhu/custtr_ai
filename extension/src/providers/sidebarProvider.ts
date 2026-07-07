@@ -63,7 +63,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           );
           break;
         case 'runSkill':
-          vscode.commands.executeCommand('workbench.action.chat.open', { query: msg.trigger });
+          vscode.env.clipboard.writeText(msg.trigger).then(() => {
+            vscode.window.showInformationMessage(`Copied "${msg.trigger}" — paste it into the Claude Code chat.`);
+          });
           break;
         case 'contributeSkill':
           vscode.commands.executeCommand('custtr-ai.contributeSkill', msg.skillName);
@@ -118,7 +120,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const docPath = s.docPath;
     const pathJson = esc(JSON.stringify(docPath));
     const nameJson = esc(JSON.stringify(s.name));
-    const chatCmd = `/@${s.name}`;
+    const chatCmd = `/${s.name}`;
     const chatCmdJson = esc(JSON.stringify(chatCmd));
 
     return `
