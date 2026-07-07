@@ -71,7 +71,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             claudeTerminal.show(true);
             claudeTerminal.sendText(msg.trigger, false);
           } else {
-            vscode.window.showInformationMessage(`Copied "${msg.trigger}" — paste it into the Claude Code chat.`);
+            vscode.commands.executeCommand('workbench.action.chat.open', { query: msg.trigger });
           }
           break;
         }
