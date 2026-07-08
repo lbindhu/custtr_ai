@@ -1,0 +1,23 @@
+{
+  "skill_name": "custtr-source-finder",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Here's my Versal AI Core series overview deck at C:/Users/labindhu/test_decks/versal_overview.pptx. Can you find where each slide's content came from? I need a reference list.",
+      "expected_output": "A Markdown table with one row per slide showing Slide #, Title/Topic, Source URL from docs.amd.com or other approved domains, Match Type (Text/Image/Both), and Status (Current/Possibly Outdated/Unknown). Slides with no match should say 'No source found' — not a guessed URL.",
+      "files": ["C:/Users/labindhu/test_decks/versal_overview.pptx"]
+    },
+    {
+      "id": 2,
+      "prompt": "I have a deck with NoC and PS-PL block diagrams at C:/Users/labindhu/test_decks/zynq_architecture.pptx. Find the source pages for each slide — especially the diagram slides.",
+      "expected_output": "Table correctly handles image/diagram slides by searching for topic matches (e.g., 'Zynq NoC architecture'). Match Type should say 'Image' or 'Text + Image' for diagram slides. URLs must be real pages from approved domains that were actually fetched and verified.",
+      "files": ["C:/Users/labindhu/test_decks/zynq_architecture.pptx"]
+    },
+    {
+      "id": 3,
+      "prompt": "Can you audit this internal training deck C:/Users/labindhu/test_decks/amd_training.pptx and tell me which slides have content that matches the current docs, and which might be out of date?",
+      "expected_output": "Table with Status column correctly populated: '✅ Current' where slide content matches live page, '⚠️ Possibly Outdated' where there are discrepancies (version numbers, changed feature names, etc.), '❓ Unknown' where no source found. Notes section explains what changed for outdated slides.",
+      "files": ["C:/Users/labindhu/test_decks/amd_training.pptx"]
+    }
+  ]
+}
