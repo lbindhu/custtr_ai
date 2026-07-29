@@ -75,6 +75,14 @@ If the script fails, show the error output and help troubleshoot.
 - Works on any LMS that supports SCORM 1.2
 - Duration is extracted via PowerShell (Windows) with a pure-Python MP4 atom parser as fallback
 
+## Auto video compression
+
+- If the input MP4 is **larger than 90 MB**, the skill automatically compresses it before packaging
+- Uses **ffmpeg 2-pass encoding** targeting 80 MB (installed at `C:\Users\mutyalaa\ffmpeg\`)
+- Falls back to **Windows built-in transcoding** if ffmpeg is not found
+- If compression still can't get under 90 MB (very long videos), a warning is shown but the SCORM is still created
+- Videos under 90 MB are packaged as-is with no compression
+
 ## Player features
 
 - Dark theme (`#282828` background)

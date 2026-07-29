@@ -182,7 +182,6 @@ def generate_html(title, video_filename, duration, threshold):
       Your browser does not support the video tag.
     </video>
   </div>
-  <div id="status">Progress: 0%</div>
   <div id="complete-badge">&#10003; Course Completed</div>
 
   <script>
@@ -256,12 +255,10 @@ def generate_html(title, video_filename, duration, threshold):
     }}
 
     var video = document.getElementById("courseVideo");
-    var statusEl = document.getElementById("status");
 
     video.addEventListener("timeupdate", function () {{
       if (totalDuration <= 0) return;
       var percent = (video.currentTime / totalDuration) * 100;
-      statusEl.textContent = "Progress: " + Math.min(percent, 100).toFixed(0) + "%";
       if (API) updateProgress(percent, video.currentTime);
     }});
 
@@ -270,6 +267,130 @@ def generate_html(title, video_filename, duration, threshold):
   </script>
 </body>
 </html>"""
+
+
+MAX_SIZE_MB = 90
+
+
+def compress_video_windows(input_path, output_path):
+    """Compress video using PowerShell Windows.Media.Transcoding (no ffmpeg needed)."""
+    ps_script = f"""
+    Add-Type -AssemblyName System.Runtime.WindowsRuntime
+    [void][Windows.Media.Transcoding.MediaTranscoder, Windows.Media, ContentType=WindowsRuntime]
+    $transcoder = New-Object Windows.Media.Transcoding.MediaTranscoder
+    $profile = [Windows.Media.MediaProperties.MediaEncodingProfile]::CreateMp4(
+        [Windows.Media.MediaProperties.VideoEncodingQuality]::Vga
+    )
+    $inputFile = [Windows.Storage.StorageFile]::GetFileFromPathAsync('{str(input_path).replace(chr(92), "\\\\")}').GetAwaiter().GetResult()
+    $outputFile = [Windows.Storage.StorageFile]::GetFileFromPathAsync('{str(output_path).replace(chr(92), "\\\\")}').GetAwaiter().GetResult()
+    $result = $transcoder.PrepareFileTranscodeAsync($inputFile, $outputFile, $profile).GetAwaiter().GetResult()
+    if ($result.CanTranscode) {{
+        $result.TranscodeAsync().GetAwaiter().GetResult()
+        Write-Output "OK"
+    }} else {{
+        Write-Output "FAIL:$($result.FailureReason)"
+    }}
+    """
+    try:
+        result = subprocess.run(
+            [r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", "-Command", ps_script],
+            capture_output=True, text=True, timeout=300
+        )
+        output = result.stdout.strip()
+        return "OK" in output
+    except Exception as e:
+        print(f"  Transcoding error: {e}")
+        return False
+
+
+FFMPEG_FALLBACK_PATH = r"C:\Users\mutyalaa\ffmpeg\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe"
+FFPROBE_FALLBACK_PATH = r"C:\Users\mutyalaa\ffmpeg\ffmpeg-master-latest-win64-gpl\bin\ffprobe.exe"
+
+
+def _find_exe(name, fallback):
+    """Find executable on PATH or use fallback path."""
+    import shutil as _shutil
+    found = _shutil.which(name)
+    if found:
+        return found
+    if Path(fallback).exists():
+        return fallback
+    return None
+
+
+def compress_video_ffmpeg(input_path, output_path, target_mb=80):
+    """Compress video using ffmpeg. Uses 2-pass encoding to reliably hit target size."""
+    ffmpeg = _find_exe("ffmpeg", FFMPEG_FALLBACK_PATH)
+    ffprobe = _find_exe("ffprobe", FFPROBE_FALLBACK_PATH)
+    if not ffmpeg or not ffprobe:
+        return False
+    try:
+        # Get duration for bitrate calculation
+        probe = subprocess.run(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(input_path)],
+            capture_output=True, text=True, timeout=30
+        )
+        duration = float(probe.stdout.strip())
+        if duration <= 0:
+            return False
+        # target bitrate in kbps (leave 96k for audio)
+        audio_kbps = 96
+        target_kbps = int((target_mb * 8 * 1024) / duration) - audio_kbps
+        target_kbps = max(100, target_kbps)
+
+        # Pass 1
+        pass1 = subprocess.run(
+            [ffmpeg, "-y", "-i", str(input_path),
+             "-vcodec", "libx264", "-b:v", f"{target_kbps}k",
+             "-preset", "slow", "-pass", "1",
+             "-an", "-f", "null", "NUL"],
+            capture_output=True, text=True, timeout=600
+        )
+        # Pass 2
+        result = subprocess.run(
+            [ffmpeg, "-y", "-i", str(input_path),
+             "-vcodec", "libx264", "-b:v", f"{target_kbps}k",
+             "-preset", "slow", "-pass", "2",
+             "-acodec", "aac", "-b:a", f"{audio_kbps}k",
+             str(output_path)],
+            capture_output=True, text=True, timeout=600
+        )
+        return result.returncode == 0 and Path(output_path).exists() and Path(output_path).stat().st_size > 0
+    except Exception:
+        return False
+
+
+def reduce_video_size(video_path, tmpdir):
+    """
+    If video is >90MB, compress it. Returns path to the video to use
+    (either original or compressed copy in tmpdir).
+    """
+    size_mb = video_path.stat().st_size / (1024 * 1024)
+    if size_mb <= MAX_SIZE_MB:
+        return video_path
+
+    print(f"  Video is {size_mb:.1f} MB — exceeds {MAX_SIZE_MB} MB limit. Compressing...")
+    compressed_path = tmpdir / ("compressed_" + video_path.name)
+
+    # Create an empty file first (required by Windows.Media.Transcoding)
+    compressed_path.touch()
+
+    # Try ffmpeg first (better quality control), then PowerShell transcoding
+    success = compress_video_ffmpeg(video_path, compressed_path)
+    if not success:
+        print("  ffmpeg not found or failed — trying Windows built-in transcoding...")
+        success = compress_video_windows(video_path, compressed_path)
+
+    if success and compressed_path.exists() and compressed_path.stat().st_size > 0:
+        new_mb = compressed_path.stat().st_size / (1024 * 1024)
+        print(f"  Compressed to {new_mb:.1f} MB")
+        if new_mb > MAX_SIZE_MB:
+            print(f"  Warning: compressed file is still {new_mb:.1f} MB (>{MAX_SIZE_MB} MB). Video may be too long to compress further without severe quality loss.")
+        return compressed_path
+    else:
+        print("  Warning: compression failed. Using original file. LMS may reject if too large.")
+        return video_path
 
 
 def create_scorm_package(video_path, title, output_dir, threshold=80):
@@ -283,6 +404,10 @@ def create_scorm_package(video_path, title, output_dir, threshold=80):
     print(f"Video  : {video_path}")
     print(f"Title  : {title}")
     print(f"Output : {output_dir}")
+
+    size_mb = video_path.stat().st_size / (1024 * 1024)
+    print(f"File size: {size_mb:.1f} MB")
+
     print(f"Getting video duration...")
     duration = get_video_duration(video_path)
     print(f"Duration: {duration:.1f} seconds")
@@ -290,8 +415,13 @@ def create_scorm_package(video_path, title, output_dir, threshold=80):
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
 
+        # Compress if needed before packaging
+        source_video = reduce_video_size(video_path, tmpdir)
+
         print("Copying video file...")
-        shutil.copy2(video_path, tmpdir / video_filename)
+        dest = tmpdir / video_filename
+        if source_video != dest:
+            shutil.copy2(source_video, dest)
 
         manifest = generate_manifest(title, video_filename)
         html = generate_html(title, video_filename, duration, threshold)
@@ -304,9 +434,11 @@ def create_scorm_package(video_path, title, output_dir, threshold=80):
         zip_path = output_dir / zip_name
 
         print("Creating SCORM ZIP package...")
+        scorm_files = {"imsmanifest.xml", "index.html", video_filename}
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for file in tmpdir.iterdir():
-                zf.write(file, file.name)
+                if file.name in scorm_files:
+                    zf.write(file, file.name)
 
     size_mb = zip_path.stat().st_size / (1024 * 1024)
     print(f"\nDone!")
