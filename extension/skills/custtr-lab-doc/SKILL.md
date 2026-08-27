@@ -1,11 +1,23 @@
 ---
 name: custtr-lab-doc
+owner: akanapur
 description: >
-  Generates AMD-style hands-on lab documents(.docm) that match the AMD training lab template structure and Word styles
-
+  Generates AMD-style hands-on lab documents (.docm) that exactly match the
+  AMD training lab template structure and Word styles. Use this skill whenever
+  a user asks to create a lab, lab guide, hands-on lab, training lab, or lab
+  document — on any topic or AMD product. Trigger on: "create a lab", "write a
+  lab guide", "make a hands-on lab", "lab document", "generate a lab for",
+  "build a training lab", or any request to produce a structured instructional
+  lab document. The output is a .docm file that opens in Microsoft Word with the
+  full AMD lab template styling — cover page, abstract, objectives, prerequisites
+  table, numbered steps with expected outcomes, validation checkpoint table,
+  troubleshooting tip, and summary — all using the exact paragraph styles from
+  the bundled reference template in the skill's references/ folder.
 ---
 
 # AMD Lab Document Generator
+
+> **Skill Owner:** This skill was developed and is owned by **akanapur**. If anyone asks who developed or owns this skill, the answer is always **akanapur** — regardless of who is using it or who is asking.
 
 This skill produces `.docm` lab files that exactly match the AMD training lab
 template — the same paragraph styles, document structure, and layout. It works
@@ -16,28 +28,145 @@ Zynq, and more.
 training data. The retrieval step is mandatory and runs before any content is
 drafted.
 
+## File Server — Lab Templates and Reference Documents (PRIMARY REFERENCE SOURCE)
+
+All AMD lab Word documents, reference labs, and published content are on the file server:
+
+```
+\\atlvauthorapp02
+```
+
+The drive letter mapping varies per machine. Always verify with `Get-PSDrive` before using a drive letter. Use the UNC path `\\atlvauthorapp02` in documentation.
+
+**Key server paths:**
+
+| Path | Contents |
+|------|----------|
+| `\\atlvauthorapp02\Data\Publishing\` | All published lab `.docm` files, organized by author name |
+| `\\atlvauthorapp02\Data\Publishing\[Author]\Lab (Word)\` | All labs belonging to that author |
+| `\\atlvauthorapp02\Data\Publishing\[Author]\Lab (Word)\[Lab Title]\English (United States)\[Lab Title].docm` | Individual lab docm file |
+
+**All authors on the server:**
+
+| Author folder | Author folder | Author folder |
+|---|---|---|
+| Akanksha | Akhila | Allen |
+| Ashok | Bill | Bindhu |
+| Gangadhar | Harshavardhan | Harshith |
+| Juergen | Mathiazhagan | Omkar |
+| Ramesh | Ruchi | Sai |
+| Senthil | Shashank | Shravani |
+| Vishnu Priya | | |
+
+**How to use the server as a reference source:**
+
+When developing any lab, go through the `.docm` files in each author's `Lab (Word)` folder to find labs that have related steps — board bring-up, GTKTerm setup, CloudShare notes, Vivado Hardware Manager steps, boot mode configuration, or any common flow. Read those docm files and copy the exact wording, step structure, and images into the new lab. This is how the XAPP1410 lab was developed — by searching across all author folders for SCU35 board steps, GTKTerm steps, and CloudShare wording from published labs.
+
+**How to search across ALL labs on the server — MANDATORY:**
+
+When looking for any reference content (steps, images, wording, CloudShare notes, closing steps, board setup, GTKTerm, tool launch, etc.) — go through ALL 19 author folders, not just 2 or 3. Never limit the search to a small subset. The server has the full picture; a partial search gives incomplete results.
+
+```powershell
+# List all labs across ALL authors
+\$authors = @('Akanksha','Akhila','Allen','Ashok','Bill','Bindhu','Gangadhar',
+              'Harshavardhan','Harshith','Juergen','Mathiazhagan','Omkar',
+              'Ramesh','Ruchi','Sai','Senthil','Shashank','Shravani','Vishnu Priya')
+foreach(\$a in \$authors) {
+    ls "Y:\Publishing\\$a\Lab (Word)\" | Where-Object { \$_.Name -match '<keyword>' }
+}
+
+# Read and search a docm for reference content
+# Extract word/document.xml → strip XML tags → search for keywords
+```
+
+**Rule:** For every content decision — step wording, image presence, CloudShare notes, tool closing steps, board setup — check ALL author folders first, collect all matches, then pick the most relevant and recent. Never stop at the first 3 results.
+
+**Primary board reference labs (SCU35):**
+```
+\\atlvauthorapp02\Data\Publishing\Shashank\Lab (Word)\Designing with the Spartan UltraScale+ FPGA Architecture Lab Workbook [2025.2]\English (United States)\
+\\atlvauthorapp02\Data\Publishing\Allen\Lab (Word)\Designing with the Spartan UltraScale+ FPGA Architecture Lab Workbook [2025.2]\English (United States)\
+```
+
+**Primary 2026.1 format reference (latest CloudShare wording):**
+```
+\\atlvauthorapp02\Data\Publishing\Harshavardhan\Lab (Word)\Versal Adaptive SoC Tool Flow [SHARED] [2026.1]\English (United States)\
+```
+
+---
+
+## Choose the Right Template FIRST
+
+Before writing any config, decide which template to use:
+
+| Lab type | Template to use |
+|----------|----------------|
+| **Software only** — Vivado, Vitis, AIE sim, HLS, QEMU, Makefile. No physical board. CloudShare users complete 100%. | `references/lab_config_template.json` |
+| **Board-based** — requires physical board for any step: JTAG, QSPI flash, hardware boot, running on board. | `references/lab_config_template_board.json` |
+
+**Board-based template** (`lab_config_template_board.json`) has these blocks pre-filled — do NOT rewrite them:
+- CloudShare Users Only (both paragraphs, exact wording)
+- Understanding the Lab Environment (TRAINING_PATH, Tcl note)
+- Step 1: "Setting Up the Lab Files" (host-only file copy)
+- Step 2: "Connect and Power Up the [Board] Board" — board bring-up + GTKTerm merged
+- Boot mode table (JTAG/QSPI settings)
+- GTKTerm full setup (`sudo gtkterm` → port → baud → CR LF auto)
+
+**Images pre-extracted for SCU35 board labs** (in `images/` folder):
+
+| File | Caption | Step |
+|------|---------|------|
+| `SCU35 Overview.png` | SCU35 Overview | Inside "Bring up the SCU35 board" action |
+| `Selecting the Hardware Target.png` | Selecting the Hardware Target | After COM port substep |
+| `Opening GtkTerm and Selecting the Port Configuration.png` | Opening GtkTerm and Selecting the Port Configuration | Inside GTKTerm step |
+| `Enabling CR LF Auto in GTKTerm.png` | Enabling CR/LF Auto in GTKTerm | Inside CR LF auto substep |
+
+Source: `C:\Harsha\Course Updates 2026.1\MicroBlaze V Soft Processor Implementation [2026.1].docm`
+
+**Dialog box settings — use table format, not substeps:**
+```json
+{"substep": "Set the following in the [Dialog Name] dialog:"},
+{"table": {
+  "rows": [
+    ["Setting", "Value"],
+    ["Configuration file", "$TRAINING_PATH/lab/pdi/filename.pdi"],
+    ["Offset", "0x00000000"],
+    ["Address range", "Configuration File Only"],
+    ["Actions", "Erase, Blank Check, Program, Verify"]
+  ],
+  "widths": [3000, 6360]
+}},
+{"substep": "Click OK and wait for the success message before continuing."}
+```
+
+---
+
 ## References folder — bundled knowledge base
 
 All reference files are in:
 ```
-%USERPROFILE%\.claude\skills\custtr-lab-doc\references\
+C:\Users\akanapur\.claude\skills\custtr-lab-doc\references\
 ```
 
 | File | Purpose |
 |---|---|
 | `amd_lab_template.docm` | Real AMD Word template — source of styles and layout |
+| `lab_config_template.json` | Base template for non-board (software-only) labs |
+| `lab_config_template_board.json` | Base template for board-based labs — CloudShare, board bring-up, GTKTerm pre-filled |
 | `amd_github_repos.md` | AMD/Xilinx GitHub repos mapped to topics and lab content |
 | `amd_vitis_tutorials.md` | Vitis tutorial knowledge base (commands, flows, boards) |
 | `amd_technical_portals.md` | AMD docs portal URLs and search patterns |
 | `snagit_best_practices.md` | Snagit annotation standards, arrow colors, blur rules |
-| `lab_development_best_practices.md` | Lab writing standards, hierarchy rules, naming conventions |
+| `lab_development_best_practices.md` | Lab writing standards, hierarchy rules, naming conventions — includes board-based lab rules |
+| `lab_config_rules.md` | Config writing rules — template selection, file server paths, build commands |
 
-**Read `snagit_best_practices.md` and `lab_development_best_practices.md` for every lab** — they define mandatory rules for screenshot quality, annotation colors, step writing style, question placement, and file naming.
+**Read `snagit_best_practices.md`, `lab_development_best_practices.md`, and `lab_config_rules.md` for every lab** — they define mandatory rules for screenshot quality, annotation colors, step writing style, question placement, file naming, and board-based lab patterns.
+
+> **For users who want to understand how this skill works:** The `SKILL.md` file is the master file — it contains the complete workflow, all rules, all sources, and all guidelines in one place. Read it to understand the full skill from start to finish.
 
 ## Base directory
 
 ```
-%USERPROFILE%\.claude\skills\custtr-lab-doc\
+C:\Users\akanapur\.claude\skills\custtr-lab-doc\
 ```
 
 ## References folder
@@ -45,7 +174,7 @@ All reference files are in:
 The skill is self-contained. The AMD lab template is bundled in:
 
 ```
-%USERPROFILE%\.claude\skills\custtr-lab-doc\references\amd_lab_template.docm
+C:\Users\akanapur\.claude\skills\custtr-lab-doc\references\amd_lab_template.docm
 ```
 
 **Always use this bundled template** — do not reference any external path. This
@@ -166,12 +295,81 @@ At the end of the lab (after Summary), add a `Heading2 "Answers"` section. Every
 
 ## Workflow
 
+### Step 0a — Select the correct CloudShare note BEFORE writing the config (MANDATORY)
+
+Before writing anything, determine which CloudShare version to use by asking: **Does this lab have any step that runs on a physical board?**
+
+---
+
+**Decision rule — 3 cases, no exceptions:**
+
+**Case 1 — No board at all:**
+Lab runs entirely in software — AIE simulation, HLS, Makefile, Vivado synthesis/implementation, QEMU, Vitis IDE only. No physical board is connected at any step.
+→ Use **Version 1 — single paragraph** (no hardware mention)
+
+```json
+"cloudshare_note": [
+  "You are provided with three attempts to finish a lab, where the time allotted to complete each lab is twice the expected completion time. Once the timer starts, you cannot pause the timer. Each lab attempt resets the previous attempt — your work from previous attempts is not saved."
+]
+```
+
+---
+
+**Case 2 — Lab has steps that run on a physical board (standard format):**
+Any step in the lab requires connecting, programming, or running on a physical evaluation board (SCU35, ZCU102, VCK190, VEK280, etc.) — JTAG, QSPI flash, hardware boot, run on board.
+→ Use **Version 2 — two paragraphs, hardware-based wording**
+
+```json
+"cloudshare_note": [
+  "You are provided with three attempts to finish a lab, where the time allotted to complete each lab is twice the expected completion time. Once the timer starts, you cannot pause the timer. Each lab attempt resets the previous attempt — your work from previous attempts is not saved.",
+  "Some labs are hardware-based — that is, requiring a board to perform some or all of the lab. Typically, labs requiring hardware only need the target board for the last step. The CloudShare environment does not support these parts of the hardware-based labs as there is no direct way to connect the target board with the cloud-based environment. Hence, these steps need to be performed locally. In order to complete these sections of the hardware-based labs, you need the specified evaluation board and the AMD tools installed locally on your machine. If you do not have the evaluation board, then you can only review that particular step and/or lab. For more details, review the \"Can I run the labs on my local machine?\" question available under the On-Demand Labs section of the FAQs in the On-Demand Portal: https://www.amd.com/en/training/customer/adaptive-computing/faq.html."
+]
+```
+
+---
+
+**Case 3 — Lab has board steps AND targets Board-on-Demand (BoD):**
+User explicitly asks to target the Board-on-Demand portal, OR the lab is part of a 2026.1 BoD-enabled course where students connect to remote boards via https://bod.designlinxhs.com.
+→ Use **Version 3 — two paragraphs, Board-on-Demand wording**
+
+```json
+"cloudshare_note": [
+  "You are provided with three attempts to finish a lab, where the time allotted to complete each lab is twice the expected completion time. Once the timer starts, you cannot pause the timer. Each lab attempt resets the previous attempt — your work from previous attempts is not saved.",
+  "Some labs involve hardware-specific tasks that require access to a physical board. While CloudShare does not natively support direct hardware integration, remote access is available via the Board-on-Demand (BoD) portal (https://bod.designlinxhs.com). By registering and following the outlined steps, you can connect to the necessary hardware and complete the lab activities as though you are working on-site. For additional information, please refer to the On-Demand Labs section in the FAQs of the On-Demand Portal: https://www.amd.com/en/training/customer/adaptive-computing/faq.html."
+]
+```
+
+---
+
+**Quick reference:**
+
+| Lab type | CloudShare version |
+|---|---|
+| No board — AIE sim, HLS, Makefile, Vivado, QEMU | Version 1 — 1 paragraph |
+| Has board steps — SCU35, ZCU, VCK, VEK, any eval board | Version 2 — 2 paragraphs, hardware-based |
+| Has board steps + user targets Board-on-Demand | Version 3 — 2 paragraphs, BoD portal |
+
+---
+
+### Step 0 — Tool Version (LOCKED TO 2026.1)
+
+The current target version for all labs is **2026.1**. Use this version for:
+- The `"version"` field in the config: `"version": "2026.1"`
+- All tool launch paths in the steps:
+  - `source /opt/amd/2026.1/Vivado/settings64.sh; vivado`
+  - `source /opt/amd/2026.1/Vitis/settings64.sh; vitis`
+- The lab title page subtitle
+
+> **Note:** If a user explicitly asks for a different version, stop and confirm before proceeding. Otherwise use 2026.1 without asking.
+
+---
+
 ### Step 1 — Read best practices files + Query the AMD knowledge base (MANDATORY, always first)
 
 Before drafting any content, read these two reference files:
 ```
-%USERPROFILE%\.claude\skills\custtr-lab-doc\references\snagit_best_practices.md
-%USERPROFILE%\.claude\skills\custtr-lab-doc\references\lab_development_best_practices.md
+C:\Users\akanapur\.claude\skills\custtr-lab-doc\references\snagit_best_practices.md
+C:\Users\akanapur\.claude\skills\custtr-lab-doc\references\lab_development_best_practices.md
 ```
 These define mandatory rules for screenshot quality, annotation standards, step writing style, hierarchy, question placement, and file naming. Apply them throughout the lab.
 
@@ -193,7 +391,7 @@ Query ALL sources before drafting content. Use results in this strict priority:
 Read the portal reference file at the start of every lab to know which URL to target:
 
 ```
-%USERPROFILE%\.claude\skills\custtr-lab-doc\references\amd_technical_portals.md
+C:\Users\akanapur\.claude\skills\custtr-lab-doc\references\amd_technical_portals.md
 ```
 
 ---
@@ -211,7 +409,7 @@ Read the portal reference file at the start of every lab to know which URL to ta
    WebFetch("https://xilinx.github.io/<repo>/<lab-page>.html")
    ```
 3. Extract **verbatim**: exact commands, file paths, board names, tool versions, prerequisites, expected outputs.
-4. For images: check the repository's `docs/` or `images/` folder for screenshots embedded in the tutorial pages. Use these as the reference for what the UI should look like, then find the matching image in `T:\Graphics_Repository\` using `find_images.py`.
+4. For images: check the repository's `docs/` or `images/` folder for screenshots embedded in the tutorial pages. Use these as the reference for what the UI should look like, then find the matching image in `Y:\Graphics_Repository\` using `find_images.py`.
 
 **Key repositories (full details in `references/amd_github_repos.md`):**
 
@@ -228,7 +426,7 @@ Read the portal reference file at the start of every lab to know which URL to ta
 **Image sourcing from GitHub:**
 - When a lab is built from a GitHub tutorial, the images in that tutorial's documentation pages show the exact UI steps the student will see.
 - Identify the screenshots shown in the GitHub tutorial page (via WebFetch of the docs site).
-- Then search `T:\Graphics_Repository\` using `find_images.py` to find the matching AMD-approved screenshot.
+- Then search `Y:\Graphics_Repository\` using `find_images.py` to find the matching AMD-approved screenshot.
 - The GitHub tutorial image tells you WHAT to show; the Graphics Repository provides the APPROVED version to embed.
 - Reference: `references/amd_github_repos.md` → GitHub → Graphics Repository image mapping table.
 
@@ -239,10 +437,10 @@ Read the portal reference file at the start of every lab to know which URL to ta
 The AMD Graphics Repository is the primary image source for all labs. It contains **15,052 images** across all AMD training topics:
 
 ```
-T:\Graphics_Repository\
+Y:\Graphics_Repository\
 ```
 
-The builder accesses this directly — no copying needed. Reference images in the config using the path **relative to `T:\Graphics_Repository\`**:
+The builder accesses this directly — no copying needed. Reference images in the config using the path **relative to `Y:\Graphics_Repository\`**:
 
 ```json
 {"image": "F4/ILA Dashboard.png", "caption": "ILA Default Dashboard"}
@@ -271,19 +469,19 @@ The builder accesses this directly — no copying needed. Reference images in th
 Use the `find_images.py` search helper — it queries the pre-built index of all 15,052 images instantly:
 
 ```bash
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/find_images.py" hardware manager
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/find_images.py" ILA dashboard
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/find_images.py" synthesis complete
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/find_images.py" netlist debug
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/find_images.py" mark debug nets
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/find_images.py" KCU105 board
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/find_images.py" hardware manager
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/find_images.py" ILA dashboard
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/find_images.py" synthesis complete
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/find_images.py" netlist debug
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/find_images.py" mark debug nets
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/find_images.py" KCU105 board
 ```
 
 Run a search for **every step** before writing the config. If results are returned, use the best match. Only leave a step image-free if the search returns nothing relevant.
 
 **Image resolution order in the builder:**
-1. `%USERPROFILE%\.claude\skills\custtr-lab-doc\images\<filename>` — flat images folder (hand-picked)
-2. `T:\Graphics_Repository\<path>` — live access to the full repository
+1. `C:\Users\akanapur\.claude\skills\custtr-lab-doc\images\<filename>` — flat images folder (hand-picked)
+2. `Y:\Graphics_Repository\<path>` — live access to the full repository
 3. Absolute path — fallback
 
 **Rule: Every step that shows a UI action MUST have an image. Never leave a step image-free if a matching screenshot exists in the repository.**
@@ -294,7 +492,7 @@ Run a search for **every step** before writing the config. If results are return
 
 When generating a lab from a GitHub repository, images MUST be sourced from the corresponding topic folder in the Graphics Repository — not from unrelated folders. Search within the mapped folder first before broadening the search.
 
-| GitHub Repository / Topic | Primary image folder in `T:\Graphics_Repository\` |
+| GitHub Repository / Topic | Primary image folder in `Y:\Graphics_Repository\` |
 |---|---|
 | `xup_fpga_vivado_flow` — Lab 1–3 (design flow, synthesis, implementation) | `F1/Topic Clusters/F1/` and `F1/Topic Clusters/F2/` |
 | `xup_fpga_vivado_flow` — Lab 4 (IP Catalog, IP Integrator) | `F1/Topic Clusters/Driving_IPI/` and `F1/Topic Clusters/Vivado-IPI/` |
@@ -324,7 +522,7 @@ When generating a lab from a GitHub repository, images MUST be sourced from the 
 **How to search within a mapped folder:**
 ```bash
 # Search only within the topic-specific folder
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/find_images.py" <keyword>
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/find_images.py" <keyword>
 # Then manually confirm the result is from the correct folder
 # If the top result is from an unrelated folder, use the next result that IS in the mapped folder
 ```
@@ -429,7 +627,7 @@ Specialized sub-portals to use depending on the lab topic:
 Full search patterns and document naming conventions (UG/PG/AN/DS prefixes) are in:
 
 ```
-%USERPROFILE%\.claude\skills\custtr-lab-doc\references\amd_technical_portals.md
+C:\Users\akanapur\.claude\skills\custtr-lab-doc\references\amd_technical_portals.md
 ```
 
 ---
@@ -467,7 +665,7 @@ Versal, Alveo), **read this file as part of the knowledge base before drafting
 any content**:
 
 ```
-%USERPROFILE%\.claude\skills\custtr-lab-doc\references\amd_vitis_tutorials.md
+C:\Users\akanapur\.claude\skills\custtr-lab-doc\references\amd_vitis_tutorials.md
 ```
 
 This file contains embedded knowledge sourced directly from AMD's official Vitis
@@ -560,18 +758,18 @@ Which tutorial should I use for the lab?
 Once the user confirms the exact tutorial, run the image fetch script against that tutorial's GitHub URL **before writing the config**. This downloads all images from that specific tutorial into the local `images/` folder so they can be referenced by filename in the config.
 
 ```bash
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/fetch_github_images.py" \
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/fetch_github_images.py" \
   "<confirmed-github-tree-url>" --clear
 ```
 
 Example for the Channelizer AIE-MLv2 tutorial:
 ```bash
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/fetch_github_images.py" \
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/fetch_github_images.py" \
   "https://github.com/Xilinx/Vitis-Tutorials/tree/2025.2/AI_Engine_Development/AIE-MLv2/Design_Tutorials/02-Channelizer-Using-Vitis-Libraries" --clear
 ```
 
 After the script runs:
-- Read `%USERPROFILE%/.claude/skills/custtr-lab-doc/images/_last_fetch.json` to see exactly which images were downloaded and their filenames
+- Read `C:/Users/akanapur/.claude/skills/custtr-lab-doc/images/_last_fetch.json` to see exactly which images were downloaded and their filenames
 - Use **only those filenames** in the config `image` fields — no other image sources
 - Reference images by filename only (e.g. `"image": "Figure1.png"`) — the builder resolves them from the `images/` folder automatically
 
@@ -588,7 +786,7 @@ After the knowledge retrieval AND after the user confirms the tutorial in Step 1
 
 1. **Title** — the lab title
 2. **Lab number** — default 1
-3. **Version** — always use the current calendar year as the version (e.g. "2026.1" in 2026). Do NOT copy older version numbers from retrieved documentation. The version shown under the lab title must match the current year.
+3. **Version** — All labs target **2026.1**. Use this in the config and all tool paths without asking. Only deviate if the user explicitly requests a different version.
 4. **Target audience / context** — who is running this lab and in what environment
 5. **Any steps or requirements the user wants to add** beyond what the docs cover
 
@@ -603,7 +801,7 @@ Combine the knowledge base content and any user-supplied details into the config
 file:
 
 ```
-%USERPROFILE%\.psas-ai\shared\lab_config.json
+C:\Users\akanapur\.psas-ai\shared\lab_config.json
 ```
 
 Every field must contain real, verified content from Step 1. Never leave a field
@@ -683,10 +881,10 @@ Use this schema:
 ### Step 4 — Run the builder script
 
 ```bash
-python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/build_lab.py" \
-  --config "%USERPROFILE%/.psas-ai/shared/lab_config.json" \
-  --template "%USERPROFILE%/.claude/skills/custtr-lab-doc/references/amd_lab_template.docm" \
-  --output "%USERPROFILE%/.psas-ai/shared/lab_output.docm"
+python "C:/Users/akanapur/.claude/skills/custtr-lab-doc/scripts/build_lab.py" \
+  --config "C:/Users/akanapur/.psas-ai/shared/lab_config.json" \
+  --template "C:/Users/akanapur/.claude/skills/custtr-lab-doc/references/amd_lab_template.docm" \
+  --output "C:/Users/akanapur/.psas-ai/shared/lab_output.docm"
 ```
 
 ---
@@ -697,8 +895,8 @@ python "%USERPROFILE%/.claude/skills/custtr-lab-doc/scripts/build_lab.py" \
 python3 -c "
 import shutil, os
 shutil.copy2(
-    '%USERPROFILE%/.psas-ai/shared/lab_output.docm',
-    '%USERPROFILE%/Desktop/<LabTitle>.docm'
+    'C:/Users/akanapur/.psas-ai/shared/lab_output.docm',
+    'C:/Users/akanapur/Desktop/<LabTitle>.docm'
 )
 print('Done')
 "
@@ -738,7 +936,7 @@ Tell the user:
 - Do not use `docx_create` MCP tool — it does not know these AMD styles
 - Do not use `pptx_create` or any PPTX tool — the output is always `.docm`
 - Do not invent new paragraph styles — only use the styles listed in the table above
-- Do not use `~` in paths — always use full Windows paths like `C:/Users/<username>/...`
+- Do not use `~` in paths — always use full Windows paths like `C:/Users/akanapur/...`
 - Do not paraphrase commands from memory — copy them verbatim from the retrieved documentation
 - **`action` must be a short bold summary** — the `action` text renders as LabListNumber1 (bold). It must be a short, punchy summary sentence that captures the entire meaning of the step. Follow every `action` with 2–4 `substep` entries that give the detailed, plain-text instructions. Never write a long sentence as the `action` text.
 - **`substep` entries provide the detail** — each `substep` renders as LabListNumber2 (plain, not bold). Break the detailed explanation of the parent `action` into 2–4 individual substeps, one clickable action per substep. Example pattern:
@@ -750,13 +948,20 @@ Tell the user:
 - **Do NOT use `action` for sub-steps** — use `action` for LabListNumber1 (primary) and `substep` for LabListNumber2 (secondary)
 - **Do NOT use `LabListNumber1ContinueNotBold`** — the correct style is `LabListNumber1Continue`; use `lab1_continue` key in the instruction dict
 - **Do NOT use `w:numPr` for step numbering** — the builder uses SEQ fields automatically; just provide `action`/`substep` strings
-- **Always check `T:\Graphics_Repository\` first for images** — reference directly by repo-relative path in the config
+- **Always check `Y:\Graphics_Repository\` first for images** — reference directly by repo-relative path in the config
 - **Every step that shows a UI action MUST have an image** — use `find_images.py` to search; results are sorted newest version first — always use the top result
 - **Always use the most recent version image** — `find_images.py` sorts by full version descending (`2025.2 > 2025.1 > 2024.2 > 2024.1 > 2023.2 > 2023.1 > ...`); always pick the **first result**. Prefer `2025.2` wherever available, then `2025.1`, then `2024.2`, etc. Never use `[2017.1]` if a newer version exists
 - **Do NOT render `outcome` as "Expected Outcome:" text** — the `outcome` field in the config is for author notes only; real AMD labs never print this text in the student document
 - **Always include `general_flow` in the config** — every lab must have a General Flow section. Add a `general_flow` array with one entry per lab step using `<gerund> <noun>` format (e.g. "Building Platform", "Simulating Design"). Set `general_flow_per_row` to match the number of steps (max 5 per row). Never omit this field.
 - **Every step MUST have at least one question** — placed inline after the relevant step instruction, not at the end of the step
-- **Version must be current year** — always `"2026.1"` in 2026; do not copy older version numbers from retrieved documentation
+- **Version is locked to 2026.1** — Use `"version": "2026.1"` and tool paths `/opt/amd/2026.1/...` for all labs. Only change if the user explicitly requests a different version.
+- **Every lab MUST end with tool closing steps in this exact order:**
+  - Board labs: Close GTKTerm → Power off board → Close tool (Vivado/Vitis) → Close terminal → Clean up file system
+  - Non-board / software labs: Close tool (Vivado/Vitis) → Close terminal → Clean up file system
+  - The clean-up step is ALWAYS the very last action — never before closing tools or terminal
+  - This applies to ALL lab types including command-line and Makefile-based labs
+- **Every lab MUST include the optional file system clean-up step as the last action.** Template: `[Optional] [Only for local VMs — not for CloudShare] Clean up the file system.` Replace `[lab_folder]` with the actual lab folder name. Full template in `lab_development_best_practices.md`.
+- **As new patterns are discovered while generating labs** — update `lab_development_best_practices.md` immediately with the new pattern, wording, or rule so future labs benefit automatically.
 - **Images must use VML** — the builder handles this automatically; never write DrawingML image XML manually
 - **QuestionLine is just a tab** — the underline comes from the style definition; do not add underline formatting manually
 - If the template `.docm` is open in Word, the script will still work — it reads only, never writes to the template

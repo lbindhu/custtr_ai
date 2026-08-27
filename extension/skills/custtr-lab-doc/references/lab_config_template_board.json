@@ -1,0 +1,149 @@
+{
+  "_comment": "BOARD-BASED LAB TEMPLATE — use this when the lab requires a physical evaluation board. All CloudShare, board bring-up, GTKTerm, and Hardware Manager blocks are pre-filled from reference labs. Replace [PLACEHOLDERS] with lab-specific content.",
+
+  "title": "[Lab Title]",
+  "lab_number": 1,
+  "version": "2025.2",
+
+  "abstract": "[One paragraph describing the lab and what the user will accomplish. Mention board, tools, and estimated time. This lab should take approximately XX minutes.]",
+
+  "cloudshare_note": [
+    "You are provided with three attempts to finish a lab, where the time allotted to complete each lab is twice the expected completion time. Once the timer starts, you cannot pause the timer. Each lab attempt resets the previous attempt — your work from previous attempts is not saved.",
+    "Some labs are hardware-based — that is, requiring a board to perform some or all of the lab. Typically, labs requiring hardware only need the target board for the last step. The CloudShare environment does not support these parts of the hardware-based labs as there is no direct way to connect the target board with the cloud-based environment. Hence, these steps need to be performed locally. In order to complete these sections of the hardware-based labs, you need the specified evaluation board and the AMD tools installed locally on your machine. If you do not have the evaluation board, then you can only review that particular step and/or lab. For more details, review the \"Can I run the labs on my local machine?\" question available under the On-Demand Labs section of the FAQs in the On-Demand Portal: https://www.amd.com/en/training/customer/adaptive-computing/faq.html."
+  ],
+
+  "objectives": [
+    "[Objective 1]",
+    "[Objective 2]",
+    "[Objective 3]",
+    "[Objective 4]"
+  ],
+
+  "introduction": [
+    "[Background paragraph 1 — describe the technology and its relevance.]",
+    "[Background paragraph 2 — describe the design, board, and key components.]",
+    {"type": "general", "text": "Understanding the Lab Environment"},
+    "The labs and demos provided in this course are designed to run on a Linux® platform. One environment variable is required: TRAINING_PATH, which points to the location of the lab files. This variable comes configured in the CloudShare/CustEd_VM environments. Some tools can use this environment variable directly (that is, $TRAINING_PATH is recognized and automatically expanded), and some tools require manual expansion (/home/amd/training for the CloudShare/CustEd_VM environments). The lab instructions describe what to do for each tool. Other environments require the definition of this variable for the scripts to work properly.",
+    "The Vivado™ Design Suite and the Vitis™ Unified IDE offer a Tcl environment used in many labs. When either tool is launched, it starts with a clean Tcl environment with none of the procs or variables remaining from any previous launch of the tools. If you sourced a Tcl script or manually set any Tcl variables and you closed the tool, when you reopen the tool, you will need to re-source the Tcl script and set any variables that the lab requires. This is also true of terminal windows — any variable settings will be cleared when a new terminal opens."
+  ],
+
+  "general_flow": [
+    "Setting Up the Lab Files",
+    "Connecting the Board",
+    "[Step 3 Title]",
+    "[Step 4 Title]",
+    "[Step 5 Title]"
+  ],
+  "general_flow_per_row": 5,
+
+  "steps": [
+    {
+      "title": "Setting Up the Lab Files",
+      "intro": "In this step, you will copy the required lab files from the support directory to the lab directory. This step runs entirely on the host PC — no board connection is needed.",
+      "instructions": [
+        {"action": "Copy the lab files from the support directory."},
+        {"substep": "Open a terminal window by pressing <Ctrl+Alt+T>."},
+        {"substep": "Copy the required files to the lab directory:"},
+        {"command": "cp $TRAINING_PATH/[lab_folder]/support/[files] $TRAINING_PATH/[lab_folder]/lab/"},
+        {"substep": "Confirm the files are present:"},
+        {"command": "ls $TRAINING_PATH/[lab_folder]/lab/"},
+        {"note": "Note: The TRAINING_PATH variable is pre-configured to /home/amd/training in the CustEd_VM and CloudShare environments."},
+        {"question": "[Question relevant to the lab files or design — e.g. what is the purpose of these files?]", "answer_lines": 3}
+      ]
+    },
+    {
+      "title": "Connect and Power Up the [Board Name] Board",
+      "intro": "If you have the hardware available, you can proceed with the following steps; otherwise, you can review this section to understand the process. For On-Demand/CloudShare users, if you have the evaluation board locally available, then copy the required project files to the local path and proceed with the steps below. You can also review the \"Can I run the labs on my local machine?\" question available under the FAQ section of the On-Demand Portal. Otherwise, you can just review (without performing) these instructions.\n\nYou will now set up the [board] board, connect it to the host PC, identify the COM port assigned to the UART interface, and configure GTKTerm.",
+      "instructions": [
+        {"action": "Bring up the [Board Name] board."},
+        {"note": "Note: The figure below of the [Board Name] evaluation board enumerates some of its more popular features. Take a moment to familiarize yourself with the PCB location of these features. Before the board can be used, there are cables and switch settings that need to be in place and set (or just verified) to ensure proper board operation. The steps that follow will reference items at the numbered PCB locations. Additional information can be found in the [Board Name] Evaluation Board User Guide ([UG number])."},
+        {"image": "[Board Overview image filename]", "caption": "[Board Name] Overview"},
+        {"substep": "Ensure that the power connector is not plugged in (1)."},
+        {"substep": "Connect the [USB Type] JTAG/UART cable between the board and the host (2)."},
+        {"substep": "Locate [boot mode jumper/switch] on the board (3). This [header/switch] configures the [device] device's boot mode, which should be set to [boot mode]."},
+        {"substep": "Set [boot mode jumper/switch] as shown below to ensure that the board is configured to boot from [mode]."},
+        {"lab1_continue": "Boot Mode  |  Mode Pins [3:0]  |  [Jumper/Switch]\n[JTAG]  |  [xxx / 0xX]  |  [Open/Closed]\n[QSPI]  |  [xxx / 0xX]  |  [Jumped/DIP setting]"},
+        {"substep": "Plug in the power connector (1). You are now ready to configure the board."},
+        {"action": "Determine which COM port connects to the USB serial port on the development board."},
+        {"substep": "Identify the appropriate channel for the USB as follows: For those using the Customer Education VM, select Devices > USB > [Xilinx/AMD board name] in the VirtualBox Manager."},
+        {"image": "Selecting the Hardware Target.png", "caption": "Selecting the Hardware Target"},
+        {"substep": "This ensures that the VM has access to the USB connection and proper USB port is allowed to cross the host/VM threshold."},
+        {"continue": "GTK Term is an interface that only supports serial port/UART communications. The more general Terminal tab supports other formats, such as SSH and Telnet. Since serial port communications occur over the USB, which is an enumerated interface, the board must be powered on with the cable connected for the port to be recognized. If you are using the VM, ensure that the proper USB port is allowed to cross the host/VM threshold by selecting Devices > USB > [board USB name] [0800] in the VirtualBox Manager for Zynq UltraScale+ MPSoC/Versal adaptive SoC boards or selecting Devices > USB > Digilent Adept USB Device [0700]."},
+        {"action": "Launch GTKTerm and set the port configuration."},
+        {"substep": "Click the GTKTerm icon ( ) from the quick launch toolbar. Alternatively, GTKTerm can be launched from a Linux terminal window (< Ctrl + Alt + T >) and entering:"},
+        {"command": "[host] $ sudo gtkterm"},
+        {"note": "Note: While the application will run as a regular user, you must be a super user to access the ports. When the GTKTerm window opens, perform the following."},
+        {"substep": "Select Configuration > Port to open the Configuration dialog box."},
+        {"substep": "Identify the port associated with your board and set the port as /dev/ttyUSBx (where x could be 0, 1, 2, 3, etc.)"},
+        {"substep": "Set the baud rate to 115200."},
+        {"substep": "Leave the rest of the settings at their default."},
+        {"note": "Note: You can open multiple instances of /dev/USBx if you are unable to determine which port your UART is connected to."},
+        {"image": "Opening GtkTerm and Selecting the Port Configuration.png", "caption": "Opening GtkTerm and Selecting the Port Configuration"},
+        {"note": "[Optional]: You can save these settings so that you do not have to reconfigure GKTTerm each time you open it by selecting Configuration > Save configuration. If you save the configuration as \"default\", this configuration will open when GTKTerm starts. Otherwise, you can save the configuration with another name; however, you will then need to load the configuration each time you start GTKTerm."},
+        {"substep": "Click OK to save the settings and leave the terminal open."},
+        {"action": "Enable auto CR/LF mode."},
+        {"substep": "GTKTerm is a terminal emulator that supports automatic translation of CR (carriage return) characters to LF (line feed) characters and vice versa."},
+        {"substep": "Select Configuration > CR LF auto to enable auto CR/LF mode."},
+        {"image": "Enabling CR LF Auto in GTKTerm.png", "caption": "Enabling CR/LF Auto in GTKTerm"},
+        {"note": "Note: This step is optional, but it will ensure that the serial messages appear aligned on the terminal."},
+        {"question": "[Question relevant to board setup or GTKTerm — e.g. what baud rate is required and what happens if wrong?]", "answer_lines": 3}
+      ]
+    },
+    {
+      "title": "[Step 3 Title]",
+      "intro": "[One sentence describing the goal of this step.]",
+      "instructions": [
+        {"note": "[Add step-specific instructions here. Use action + substep pattern.]"},
+        {"action": "[Main action]"},
+        {"substep": "[Sub-step instruction]"},
+        {"question": "[Optional question]", "answer_lines": 3}
+      ]
+    },
+    {
+      "title": "[Step 4 Title]",
+      "intro": "[One sentence describing the goal of this step.]",
+      "instructions": [
+        {"action": "[Main action]"},
+        {"substep": "[Sub-step instruction]"},
+        {"question": "[Optional question]", "answer_lines": 3}
+      ]
+    },
+    {
+      "title": "[Step 5 Title]",
+      "intro": "[One sentence describing the goal of this step.]",
+      "instructions": [
+        {"action": "[Main action]"},
+        {"substep": "[Sub-step instruction]"},
+        {"question": "[Optional question]", "answer_lines": 3}
+      ]
+    }
+  ],
+
+  "troubleshooting": {
+    "problem": "[Short description of the most common problem students encounter]",
+    "cause": "[Explanation of why this happens]",
+    "steps": [
+      {"action": "[Fix step 1]"},
+      {"action": "[Fix step 2]"},
+      {"note": "Note: If the issue persists, refer to [AMD support link or doc reference]"}
+    ],
+    "reference": "[https://adaptivesupport.amd.com/...]"
+  },
+
+  "summary": "[One paragraph summarizing what was accomplished — mention the board, what was programmed, what was validated, and what the student demonstrated.]",
+
+  "answers": [
+    {
+      "question": "[Exact question text from Step 1]",
+      "answer": "[Full answer]"
+    },
+    {
+      "question": "[Exact question text from Step 2]",
+      "answer": "[Full answer]"
+    },
+    {
+      "question": "[Exact question text from Step 3 or later]",
+      "answer": "[Full answer]"
+    }
+  ]
+}

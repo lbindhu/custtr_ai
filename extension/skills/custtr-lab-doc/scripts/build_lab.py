@@ -471,8 +471,9 @@ def embed_image(url_or_path):
             return None
     else:
         candidates = [
-            os.path.join(IMAGE_DB, url_or_path),   # local images/ folder (downloaded from GitHub)
-            url_or_path,                             # absolute path fallback
+            os.path.join(IMAGE_DB, url_or_path),                        # local images/ folder (downloaded from GitHub)
+            os.path.join('Y:/Graphics_Repository', url_or_path),        # network graphics repository
+            url_or_path,                                                  # absolute path fallback
         ]
         resolved = next((p for p in candidates if os.path.exists(p)), None)
         if resolved is None:

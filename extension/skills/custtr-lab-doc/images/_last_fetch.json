@@ -1,93 +1,41 @@
 {
-  "url": "https://github.com/Xilinx/Vitis-Tutorials/tree/2025.2/AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm",
+  "url": "https://github.com/Xilinx/Vitis-Tutorials/tree/2026.1/AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter",
   "owner": "Xilinx",
   "repo": "Vitis-Tutorials",
-  "branch": "2025.2",
-  "base_path": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm",
+  "branch": "2026.1",
+  "base_path": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter",
   "images": [
     {
-      "filename": "0_AMD_Versal_Devices.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
+      "filename": "AIE_API_Parameters.png",
+      "source_dir": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter/images"
     },
     {
-      "filename": "10_Tiling_Data.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
+      "filename": "Farrow_Opt2_Graph.png",
+      "source_dir": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter/images"
     },
     {
-      "filename": "11_2_Tiling_Data_Order_Col_Major_Example.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
+      "filename": "Farrow_Opt2_Trace.png",
+      "source_dir": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter/images"
     },
     {
-      "filename": "11_Tiling_Data_Order_Example.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
+      "filename": "Farrow_inital_and_opt_1.png",
+      "source_dir": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter/images"
     },
     {
-      "filename": "12_Design_1_Parameter_Config.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
+      "filename": "Initial_Port_Graph.png",
+      "source_dir": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter/images"
     },
     {
-      "filename": "13_Design_1_Graph_View.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
+      "filename": "Initial_Port_Trace.png",
+      "source_dir": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter/images"
     },
     {
-      "filename": "14_Design_2_Parameter_Config.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
+      "filename": "Pipeline_Diagram_of_AIE_and_AIE-ML.png",
+      "source_dir": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter/images"
     },
     {
-      "filename": "15_Design_2_Graph_View.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "16_Design_3_Parameter_Config.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "17_Design_3_Graph_View.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "18_Design_3_Array_View.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "19_Vector_Data_Path_AIE_AIE-ML.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "1_Intro_Matrix_Mul.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "2_Matrix_Product.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "3_GEMM_Parameters.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "4_Configure_Matrix_Dim.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "5_Configure_Data_Order.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "6_Configure_Buffer_Size.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "7_Configure_Parallelization.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "8_Tiling_Scheme.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
-    },
-    {
-      "filename": "9_Tiling_Data_Type.png",
-      "source_dir": "AI_Engine_Development/AIE-ML/Feature_Tutorials/06-gemm/images"
+      "filename": "Tool_Flow.png",
+      "source_dir": "AI_Engine_Development/AIE-ML/Design_Tutorials/06-farrow_filter/images"
     }
   ]
 }
