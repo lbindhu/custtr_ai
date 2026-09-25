@@ -1,6 +1,7 @@
 ---
-name: split-lab-workbook
+name: custtr-split-lab-workbook
 description: >
+  Splits a combined AMD lab workbook into separate lab documents and exports clean PDFs.
   Splits a combined AMD lab workbook .docx into separate lab files by lab number while preserving
   Word formatting, then post-processes outputs: removes last-page AMD header images, exports PDFs,
   trims trailing blank pages, sets PDF metadata, and exports a combined workbook PDF with lab
